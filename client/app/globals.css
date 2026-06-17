@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/* React Flow base styles — needed or nodes render unstyled */
+@layer base {
+  @import "@xyflow/react/dist/style.css";
+}
+
+/* =========================================================================
+   SYSTEM DESIGN QUEST — DESIGN TOKENS
+   "Soft Technical Playground" — warm paper, tactile cards, cobalt brand.
+   Sim-health colors (green/amber/red/ink) sit OUTSIDE the brand ramp so
+   they stay semantically loud during simulation. Light theme only (PRD §10.6).
+   ========================================================================= */
+:root {
+  /* surfaces — warm paper stack */
+  --paper:        #fbfaf7;
+  --paper-sunken: #f3f1ea;
+  --surface:      #ffffff;
+
+  /* ink + text */
+  --ink:       #17161b;
+  --ink-soft:  #3d3b44;
+  --muted:     #75727e;
+
+  /* hairlines */
+  --line:        #ece8df;
+  --line-strong: #ddd8cc;
+
+  /* brand — cobalt (distinct from all sim-health hues) */
+  --brand:       #355cff;
+  --brand-press: #2845cc;
+  --brand-soft:  #ebefff;
+  --brand-ink:   #1c308f;
+
+  /* sim-health semantics (loud, fixed) */
+  --healthy:      #2fb573;  --healthy-soft: #e3f6ec;
+  --load:         #e8a33d;  --load-soft:    #fbf0db;
+  --bottleneck:   #e5484d;  --bottleneck-soft: #fbe6e7;
+  --fail:         #1b1a1f;
+
+  /* radii */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.125rem;
+  --radius-xl: 1.625rem;
+
+  /* soft shadows */
+  --shadow-sm:  0 1px 2px rgba(20,18,30,.05), 0 1px 1px rgba(20,18,30,.04);
+  --shadow-md:  0 4px 14px -4px rgba(28,25,45,.12), 0 2px 6px -2px rgba(28,25,45,.07);
+  --shadow-lg:  0 18px 40px -12px rgba(28,25,45,.18), 0 6px 14px -8px rgba(28,25,45,.10);
+  --shadow-pop: 0 3px 0 0 var(--line-strong);          /* chunky tactile edge */
+  --shadow-pop-brand: 0 3px 0 0 var(--brand-press);
+}
+
+/* Map tokens → Tailwind v4 utilities (bg-paper, text-ink, rounded-lg, font-display…) */
+@theme inline {
+  --color-paper:        var(--paper);
+  --color-paper-sunken: var(--paper-sunken);
+  --color-surface:      var(--surface);
+  --color-ink:          var(--ink);
+  --color-ink-soft:     var(--ink-soft);
+  --color-muted:        var(--muted);
+  --color-line:         var(--line);
+  --color-line-strong:  var(--line-strong);
+  --color-brand:        var(--brand);
+  --color-brand-press:  var(--brand-press);
+  --color-brand-soft:   var(--brand-soft);
+  --color-brand-ink:    var(--brand-ink);
+  --color-healthy:      var(--healthy);
+  --color-healthy-soft: var(--healthy-soft);
+  --color-load:         var(--load);
+  --color-load-soft:    var(--load-soft);
+  --color-bottleneck:   var(--bottleneck);
+  --color-bottleneck-soft: var(--bottleneck-soft);
+  --color-fail:         var(--fail);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  --font-sans:    var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-feature-settings: "ss01", "cv01";
+}
+
+/* Display headings use the characterful font by default */
+h1, h2, h3 { font-family: var(--font-display), sans-serif; letter-spacing: -0.02em; }
+
+/* =========================================================================
+   UTILITIES
+   ========================================================================= */
+
+/* faint engineering dot-grid — the "design canvas" atmosphere */
+@utility bg-dotgrid {
+  background-image: radial-gradient(var(--line-strong) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+}
+
+/* tactile button edge (Duolingo-style chunky press) */
+@utility shadow-pop { box-shadow: var(--shadow-pop); }
+@utility shadow-pop-brand { box-shadow: var(--shadow-pop-brand); }
+
+/* numeric readout style for metrics */
+@utility tabular {
+  font-family: var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* blueprint grid — finer than dotgrid, with cross ticks. Engineering-spec feel. */
+@utility bg-blueprint {
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* film grain — atmosphere over flat paper. Subtle. */
+@utility bg-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* mono engineering label — coordinate ticks, annotations */
+@utility label-spec {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@utility animate-marquee {
+  animation: marquee 26s linear infinite;
+}
