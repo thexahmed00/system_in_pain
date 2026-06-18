@@ -1,0 +1,11 @@
+{
+  "id": "tinyurl-1",
+  "stage": 1,
+  "title": "TinyURL",
+  "story": "A startup founder needs a URL shortening service. Users submit long URLs and expect short links instantly. Generate short URLs reliably without breaking the bank.",
+  "traffic": { "profile": "steady", "ratePerMin": 100, "readWriteRatio": 0.9 },
+  "allowedComponents": ["client", "api-gateway", "sql-db", "cache"],
+  "failureInjections": [],
+  "winConditions": { "p99LatencyMs": 200, "availability": 0.99, "maxCostPerHour": 5 },
+  "concepts": ["APIs", "Databases", "Client–Server"]
+}

@@ -38,6 +38,7 @@ function mulberry32(seed: number) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+
 }
 const expSample = (rng: () => number, mean: number) => (mean <= 0 ? 0 : -mean * Math.log(1 - rng()));
 
