@@ -2,7 +2,7 @@
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { CATALOG } from "@/app/play/level-data";
-import type { Status } from "@/app/play/preview-sim";
+import type { Status } from "@sdq/sim-engine";
 
 const RING: Record<Status, string> = {
   healthy: "var(--healthy)",

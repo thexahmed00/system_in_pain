@@ -48,11 +48,11 @@ export interface WinConditions { p99LatencyMs: number; availability: number; max
 /** A request is a read or a write — they hit caches/DBs differently. TODO: classify per arrival */
 export type RequestClass = "read" | "write";
 
-/** Scenario stressors (PRD §5 / VISION failure simulation). TODO: apply in failures/inject.ts */
+/** Scenario stressors (PRD §5 / VISION failure simulation). Each lasts durationSec, then recovers. */
 export type FailureInjection =
-  | { kind: "spike"; atSecond: number; multiplier: number }       // sudden traffic surge
-  | { kind: "node-down"; atSecond: number; nodeType: string }     // a component fails
-  | { kind: "latency-spike"; atSecond: number; addMs: number };   // network degradation
+  | { kind: "spike"; atSecond: number; durationSec: number; multiplier: number }    // traffic surge window
+  | { kind: "node-down"; atSecond: number; durationSec: number; nodeType: string }  // all nodes of a type fail
+  | { kind: "latency-spike"; atSecond: number; durationSec: number; addMs: number };// network degradation window
 
 /** Level DSL (PRD §7 / VISION). Validated by levels/schema.ts. */
 export interface Level {

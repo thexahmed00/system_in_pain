@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { SimResult } from "@/app/play/preview-sim";
+import type { SimResult } from "@sdq/sim-engine";
 
 /** Simulation run state. `result` is server-truth once the real engine lands. */
 interface SimState {

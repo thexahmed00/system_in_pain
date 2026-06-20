@@ -13,7 +13,7 @@ import { Panel } from "@/app/components/ui/Panel";
 import { Badge } from "@/app/components/ui/Badge";
 import { ComponentNode } from "@/app/components/canvas/ComponentNode";
 import { CATALOG, GROUP_ORDER, TINYURL } from "./level-data";
-import { simulate, type SimResult } from "./preview-sim";
+import { simulate, type SimResult } from "@sdq/sim-engine";
 import { stagger, fadeRise, popIn, spring } from "@/app/lib/motion";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import {

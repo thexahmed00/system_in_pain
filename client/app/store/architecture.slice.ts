@@ -3,7 +3,7 @@ import {
   applyNodeChanges, applyEdgeChanges, addEdge,
   type Node, type Edge, type NodeChange, type EdgeChange, type Connection,
 } from "@xyflow/react";
-import type { SimNodeResult } from "@/app/play/preview-sim";
+import type { SimNodeResult } from "@sdq/sim-engine";
 
 /** The architecture the player is building: the React Flow graph + selection. */
 interface ArchitectureState {

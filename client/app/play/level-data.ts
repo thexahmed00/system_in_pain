@@ -3,6 +3,9 @@ import {
   Globe, Network, ListOrdered, ShieldCheck, Gauge, Boxes,
   type LucideIcon,
 } from "lucide-react";
+import type { Level } from "@sdq/sim-engine";
+
+export type { Level };
 
 export type Kind = "source" | "compute" | "storage" | "network" | "messaging" | "security";
 export type Group = "Client" | "Compute" | "Storage" | "Networking" | "Messaging" | "Security";
@@ -37,18 +40,7 @@ export const CATALOG: Record<string, ComponentSpec> = {
 
 export const GROUP_ORDER: Group[] = ["Client", "Compute", "Storage", "Networking", "Messaging", "Security"];
 
-export interface Level {
-  id: string;
-  stage: number;
-  title: string;
-  story: string;
-  traffic: { profile: string; ratePerMin: number; readWriteRatio: number };
-  allowedComponents: string[];
-  winConditions: { p99LatencyMs: number; availability: number; maxCostPerHour: number };
-  concepts: string[];
-}
-
-/** Level 1 — matches PRD/VISION DSL shape (the real engine will load these from JSON). */
+/** Level 1 — uses the engine's Level type (the real engine will load these from JSON). */
 export const TINYURL: Level = {
   id: "tinyurl-1",
   stage: 1,
@@ -57,6 +49,7 @@ export const TINYURL: Level = {
     "A startup founder needs a URL shortening service. Users submit long URLs and expect short links instantly. Generate short URLs reliably without breaking the bank.",
   traffic: { profile: "steady", ratePerMin: 100, readWriteRatio: 0.9 },
   allowedComponents: ["client", "api-gateway", "sql-db", "cache"],
+  failureInjections: [],
   winConditions: { p99LatencyMs: 200, availability: 0.99, maxCostPerHour: 5 },
   concepts: ["APIs", "Databases", "Client–Server"],
 };
