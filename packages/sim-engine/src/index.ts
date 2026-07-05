@@ -18,13 +18,17 @@ export function simulate(graph: Graph, level: Level, seed = 12345): SimResult {
     return {
       ok: false,
       error: "Connect a Client to a terminal node to run.",
-      metrics: { p99: 0, p50: 0, availability: 0, costPerHour: 0 },
+      metrics: { p99: 0, p50: 0, availability: 0, costPerHour: 0, throughput: 0 },
       nodes: [],
       events: [],
       dims: { performance: 0, reliability: 0, scalability: 0, cost: 0, security: 0 },
+      activeDimensions: [],
       final: 0,
       passed: false,
       lesson: "",
+      scenarios: [],
+      stars: [],
+      edgeFlows: [],
     };
   }
   const sc = score(graph, base, level, seed);
@@ -34,8 +38,12 @@ export function simulate(graph: Graph, level: Level, seed = 12345): SimResult {
     nodes: base.nodes,
     events: base.events,
     dims: sc.dims,
+    activeDimensions: sc.activeDimensions,
     final: sc.final,
     passed: sc.passed,
     lesson: sc.lesson,
+    scenarios: sc.scenarios,
+    stars: sc.stars,
+    edgeFlows: base.edgeFlows,
   };
 }

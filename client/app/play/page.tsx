@@ -6,23 +6,26 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, BackgroundVariant,
   useReactFlow,
-  type NodeChange, type EdgeChange, type Connection, type NodeTypes,
+  type NodeChange, type EdgeChange, type Connection, type NodeTypes, type EdgeTypes,
 } from "@xyflow/react";
-import { Play, RotateCcw, Trash2, ArrowLeft, Lock, Zap } from "lucide-react";
+import { FlowEdge } from "@/app/components/canvas/FlowEdge";
+import { Play, RotateCcw, Trash2, ArrowLeft, Lock, Zap, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { Panel } from "@/app/components/ui/Panel";
 import { Badge } from "@/app/components/ui/Badge";
 import { ComponentNode } from "@/app/components/canvas/ComponentNode";
-import { CATALOG, GROUP_ORDER, TINYURL } from "./level-data";
+import { SuccessModal } from "@/app/components/play/SuccessModal";
+import { CATALOG, GROUP_ORDER, LEVELS, UNLOCK_LEVEL } from "./level-data";
 import { simulate, type SimResult } from "@sdq/sim-engine";
 import { stagger, fadeRise, popIn, spring } from "@/app/lib/motion";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import {
   nodesChanged, edgesChanged, connected, nodeAdded, nodeDeleted,
-  selectedSet, healthPainted, healthCleared, graphReset,
+  selectedSet, healthPainted, edgeFlowPainted, healthCleared, graphReset, graphSeeded,
 } from "@/app/store/architecture.slice";
 import { runStarted, runFinished, simCleared } from "@/app/store/sim.slice";
 
 const nodeTypes: NodeTypes = { component: ComponentNode };
+const edgeTypes: EdgeTypes = { flow: FlowEdge };
 
 const DIM_LABELS: [keyof SimResult["dims"], string][] = [
   ["performance", "Performance"], ["reliability", "Reliability"],
@@ -34,8 +37,10 @@ function dimColor(v: number) {
 }
 
 function PlayInner() {
-  const level = TINYURL;
   const dispatch = useAppDispatch();
+  const [levelIdx, setLevelIdx] = React.useState(0);
+  const [showWin, setShowWin] = React.useState(false);
+  const level = LEVELS[levelIdx];
   const nodes = useAppSelector((s) => s.architecture.nodes);
   const edges = useAppSelector((s) => s.architecture.edges);
   const selected = useAppSelector((s) => s.architecture.selected);
@@ -43,14 +48,23 @@ function PlayInner() {
   const running = useAppSelector((s) => s.sim.running);
   const { screenToFlowPosition } = useReactFlow();
 
+  // celebrate when a run passes
+  React.useEffect(() => {
+    if (result?.ok && result.passed) setShowWin(true);
+  }, [result]);
+
   // any structural edit invalidates the last run
   const invalidate = React.useCallback(() => {
     dispatch(simCleared());
     dispatch(healthCleared());
+    setShowWin(false);
   }, [dispatch]);
 
   const onNodesChange = React.useCallback((c: NodeChange[]) => dispatch(nodesChanged(c)), [dispatch]);
-  const onEdgesChange = React.useCallback((c: EdgeChange[]) => dispatch(edgesChanged(c)), [dispatch]);
+  const onEdgesChange = React.useCallback((c: EdgeChange[]) => {
+    dispatch(edgesChanged(c));
+    if (c.some((ch) => ch.type === "remove")) invalidate(); // deleting a connection invalidates the run
+  }, [dispatch, invalidate]);
   const onConnect = React.useCallback((c: Connection) => { dispatch(connected(c)); invalidate(); }, [dispatch, invalidate]);
 
   const onDrop = React.useCallback((e: React.DragEvent) => {
@@ -70,16 +84,46 @@ function PlayInner() {
   const run = React.useCallback(() => {
     dispatch(runStarted());
     const graph = {
-      nodes: nodes.map((n) => ({ id: n.id, type: (n.data as { compType: string }).compType })),
+      nodes: nodes.map((n) => {
+        const d = n.data as { compType: string; instances?: number };
+        return { id: n.id, type: d.compType, config: d.instances ? { instances: d.instances } : undefined };
+      }),
       edges: edges.map((e) => ({ source: e.source, target: e.target })),
     };
     const res = simulate(graph, level);
     dispatch(healthPainted(res.nodes));
+    dispatch(edgeFlowPainted(res.edgeFlows));
     setTimeout(() => dispatch(runFinished(res)), 520);
   }, [dispatch, nodes, edges, level]);
 
-  const reset = React.useCallback(() => { dispatch(graphReset()); dispatch(simCleared()); }, [dispatch]);
-  const w = level.winConditions;
+  // levels with a starterGraph open pre-built (L5 starts over-engineered); reset restores it
+  const seedCanvas = React.useCallback((lvl: typeof level) => {
+    dispatch(lvl.starterGraph ? graphSeeded(lvl.starterGraph) : graphReset());
+  }, [dispatch]);
+
+  const reset = React.useCallback(() => { seedCanvas(level); dispatch(simCleared()); setShowWin(false); }, [dispatch, seedCanvas, level]);
+  const goLevel = React.useCallback((i: number) => {
+    if (i < 0 || i >= LEVELS.length) return;
+    setLevelIdx(i);
+    setShowWin(false);
+    seedCanvas(LEVELS[i]);
+    dispatch(simCleared());
+  }, [dispatch, seedCanvas]);
+
+  // steady (tier-1) gates this level sets — render only what it tests
+  const w = level.winConditions.steady;
+  const gates: [string, string][] = [];
+  if (w.p95LatencyMs != null) gates.push(["p95 latency", `≤ ${w.p95LatencyMs}ms`]);
+  if (w.p99LatencyMs != null) gates.push(["p99 latency", `≤ ${w.p99LatencyMs}ms`]);
+  if (w.availability != null) gates.push(["availability", `≥ ${(w.availability * 100).toFixed(0)}%`]);
+  if (w.minThroughputRps != null) gates.push(["throughput", `≥ ${w.minThroughputRps} r/s`]);
+  if (w.maxErrorRate != null) gates.push(["error rate", `≤ ${(w.maxErrorRate * 100).toFixed(0)}%`]);
+  if (w.maxCostPerHour != null) gates.push(["cost", `≤ $${w.maxCostPerHour}/hr`]);
+
+  // tier-2 scenario gates (visible rows; pass/fail filled in after a run)
+  const scenarios = level.winConditions.scenarios ?? [];
+  const scenResult = (name: string) => result?.scenarios?.find((s) => s.name === name);
+  const prettyName = (t: string) => t.replace(/-/g, " ");
 
   return (
     <div className="flex h-screen flex-col bg-paper">
@@ -88,8 +132,12 @@ function PlayInner() {
         <div className="flex items-center gap-3">
           <Link href="/" className="text-muted transition-colors hover:text-ink"><ArrowLeft size={18} /></Link>
           <span className="grid size-6 place-items-center rounded-md bg-brand text-white"><Zap size={13} fill="currentColor" /></span>
-          <span className="font-display font-bold text-ink">Level {level.stage} · {level.title}</span>
-          <Badge tone="neutral" className="!text-[10px]">PREVIEW ENGINE</Badge>
+          <div className="flex items-center gap-1">
+            <button onClick={() => goLevel(levelIdx - 1)} disabled={levelIdx === 0} aria-label="Previous level" className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"><ChevronLeft size={16} /></button>
+            <span className="font-display font-bold text-ink">Level {levelIdx + 1} · {level.title}</span>
+            <button onClick={() => goLevel(levelIdx + 1)} disabled={levelIdx === LEVELS.length - 1} aria-label="Next level" className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"><ChevronRight size={16} /></button>
+          </div>
+          <Badge tone="neutral" className="!text-[10px]">{level.concepts[0]?.toUpperCase()}</Badge>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={reset} className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] border border-line-strong bg-surface px-3 text-sm font-semibold text-ink-soft shadow-pop transition-all hover:bg-paper-sunken active:translate-y-[2px] active:shadow-none">
@@ -109,18 +157,70 @@ function PlayInner() {
 
           <div className="mt-5 space-y-2">
             <p className="label-spec">Traffic</p>
-            <div className="rounded-[var(--radius-md)] bg-paper-sunken px-3 py-2 text-sm font-semibold text-ink">
-              {level.traffic.ratePerMin} req/min · {Math.round(level.traffic.readWriteRatio * 100)}% reads
+            <div className="rounded-[var(--radius-md)] bg-paper-sunken px-3 py-2">
+              {(() => {
+                const rps = Math.round(level.traffic.ratePerMin / 60);
+                const reads = Math.round(level.traffic.readWriteRatio * 100);
+                const writes = 100 - reads;
+                const bots = Math.round((level.traffic.maliciousRatio ?? 0) * 100);
+                const shape = reads >= 70 ? "read-heavy" : writes >= 70 ? "write-heavy" : "mixed";
+                return (
+                  <>
+                    <div className="text-sm font-semibold text-ink">~{rps} r/s · {shape}</div>
+                    <div className="tabular mt-0.5 text-xs text-muted">
+                      {reads}% reads · {writes}% writes
+                      {bots > 0 && <span className="font-semibold text-[#b91c1c]"> · {bots}% bot traffic</span>}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
           <div className="mt-5 space-y-2">
             <p className="label-spec">Win conditions</p>
             <ul className="space-y-1.5 text-sm">
-              <li className="flex justify-between"><span className="text-muted">p99 latency</span><span className="tabular font-semibold text-ink">≤ {w.p99LatencyMs}ms</span></li>
-              <li className="flex justify-between"><span className="text-muted">availability</span><span className="tabular font-semibold text-ink">≥ {(w.availability * 100).toFixed(0)}%</span></li>
-              <li className="flex justify-between"><span className="text-muted">cost</span><span className="tabular font-semibold text-ink">≤ ${w.maxCostPerHour}/hr</span></li>
+              {gates.map(([k, v]) => (
+                <li key={k} className="flex justify-between"><span className="text-muted">{k}</span><span className="tabular font-semibold text-ink">{v}</span></li>
+              ))}
             </ul>
+
+            {(level.failureInjections?.length ?? 0) > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="label-spec">During the run</p>
+                <ul className="space-y-1.5 text-sm">
+                  {level.failureInjections!.map((f, i) => (
+                    <li key={i} className="flex justify-between">
+                      <span className="text-muted">
+                        {f.kind === "spike" ? `${f.multiplier}× traffic burst` : f.kind === "node-down" ? `${f.nodeType.replace(/-/g, " ")} outage` : `+${f.addMs}ms network lag`}
+                      </span>
+                      <span className="tabular font-semibold text-ink">at {f.atSecond}s · {f.durationSec}s</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {scenarios.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="label-spec">Scenarios</p>
+                <ul className="space-y-1.5 text-sm">
+                  {scenarios.map((s) => {
+                    const r = scenResult(s.name);
+                    const target = s.mustMeet.availability != null ? `≥ ${(s.mustMeet.availability * 100).toFixed(0)}% up` : "survive";
+                    return (
+                      <li key={s.name} className="flex items-center justify-between">
+                        <span className="text-muted">{prettyName(s.name)}{s.trafficMultiplier ? ` ${s.trafficMultiplier}×` : ""}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="tabular font-semibold text-ink">{target}</span>
+                          {r && <span className="size-2 shrink-0 rounded-full" style={{ background: r.passed ? "var(--healthy)" : "var(--bottleneck)" }} />}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
 
           <AnimatePresence>
@@ -143,8 +243,13 @@ function PlayInner() {
                       <Badge tone={result.passed ? "healthy" : "bottleneck"} dot>{result.passed ? "COMPLETE" : "NOT PASSED"}</Badge>
                     </motion.div>
 
-                    <motion.div variants={fadeRise} className="mb-4 grid grid-cols-3 gap-2">
-                      {[["p99", `${result.metrics.p99}ms`], ["avail", `${(result.metrics.availability * 100).toFixed(1)}%`], ["cost", `$${result.metrics.costPerHour}`]].map(([k, v]) => (
+                    <motion.div variants={fadeRise} className="mb-4 grid grid-cols-2 gap-2">
+                      {[
+                        ["p99", `${result.metrics.p99}ms`],
+                        ["avail", `${(result.metrics.availability * 100).toFixed(1)}%`],
+                        ["cost", `$${result.metrics.costPerHour}/hr`],
+                        ["tps", `${Math.round(result.metrics.throughput)}r/s`],
+                      ].map(([k, v]) => (
                         <div key={k} className="rounded-[var(--radius-md)] bg-paper-sunken px-2 py-1.5">
                           <div className="label-spec">{k}</div>
                           <div className="tabular text-sm font-bold text-ink">{v}</div>
@@ -153,15 +258,32 @@ function PlayInner() {
                     </motion.div>
 
                     <motion.div variants={fadeRise} className="space-y-2">
-                      {DIM_LABELS.map(([k, label]) => (
-                        <div key={k}>
-                          <div className="mb-1 flex justify-between text-xs"><span className="text-ink-soft">{label}</span><span className="tabular font-semibold text-ink">{result.dims[k]}</span></div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-paper-sunken">
-                            <motion.div initial={{ width: 0 }} animate={{ width: `${result.dims[k]}%` }} transition={spring.soft} className="h-full rounded-full" style={{ background: dimColor(result.dims[k]) }} />
+                      {DIM_LABELS.map(([k, label]) => {
+                        const active = result.activeDimensions.includes(k);
+                        return (
+                          <div key={k} className={active ? "" : "opacity-40"}>
+                            <div className="mb-1 flex justify-between text-xs">
+                              <span className="text-ink-soft">{label}{!active && <span className="ml-1 text-[10px] text-muted">not tested</span>}</span>
+                              <span className="tabular font-semibold text-ink">{active ? result.dims[k] : "—"}</span>
+                            </div>
+                            <div className="h-1.5 overflow-hidden rounded-full bg-paper-sunken">
+                              {active && <motion.div initial={{ width: 0 }} animate={{ width: `${result.dims[k]}%` }} transition={spring.soft} className="h-full rounded-full" style={{ background: dimColor(result.dims[k]) }} />}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </motion.div>
+
+                    {result.stars.length > 0 && (
+                      <motion.div variants={fadeRise} className="mt-4 flex items-center gap-1.5">
+                        {result.stars.map((s) => (
+                          <span key={s.id} title={`${s.label}: ${s.hint}`}>
+                            <Star size={16} strokeWidth={2} style={{ color: s.earned ? "#e0a106" : "var(--line-strong)", fill: s.earned ? "#e0a106" : "transparent" }} />
+                          </span>
+                        ))}
+                        <span className="ml-1 text-xs font-semibold text-muted">{result.stars.filter((s) => s.earned).length}/{result.stars.length} stars</span>
+                      </motion.div>
+                    )}
 
                     {result.lesson && (
                       <motion.p variants={fadeRise} className="mt-4 rounded-r-[var(--radius-md)] border-l-[3px] border-load bg-load-soft/60 px-3 py-2.5 text-sm text-ink-soft">
@@ -178,17 +300,30 @@ function PlayInner() {
         {/* CENTER — canvas */}
         <div className="relative min-h-0 overflow-hidden rounded-[var(--radius-lg)] border border-line bg-surface shadow-sm">
           <ReactFlow
-            nodes={nodes} edges={edges} nodeTypes={nodeTypes}
+            nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
             onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
             onNodeClick={(_, n) => dispatch(selectedSet(n.id))}
             onPaneClick={() => dispatch(selectedSet(null))}
             onDrop={onDrop} onDragOver={(e) => e.preventDefault()}
             fitView proOptions={{ hideAttribution: true }}
-            defaultEdgeOptions={{ style: { stroke: "var(--line-strong)", strokeWidth: 2 } }}
+            defaultEdgeOptions={{ type: "flow" }}
+            connectionLineStyle={{ stroke: "var(--brand)", strokeWidth: 2, strokeLinecap: "round", strokeDasharray: "4 4" }}
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} color="var(--line-strong)" />
             <Controls showInteractive={false} className="!rounded-[var(--radius-md)] !border !border-line !shadow-md" />
           </ReactFlow>
+
+          {/* flow legend — appears once a run has painted the edges */}
+          {result?.ok && (
+            <div className="absolute left-4 top-4 flex items-center gap-3 rounded-full border border-line bg-surface/90 px-3 py-1.5 text-[11px] font-semibold text-ink-soft shadow-sm backdrop-blur">
+              {([["reads", "#2563eb"], ["writes", "#d97706"], ["both", "#7c3aed"]] as const).map(([label, color]) => (
+                <span key={label} className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full" style={{ background: color }} />
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* selection toolbar */}
           <AnimatePresence>
@@ -221,24 +356,44 @@ function PlayInner() {
                   <p className="label-spec mb-2 px-1">{group}</p>
                   <div className="space-y-1.5">
                     {items.map((c) => {
-                      const allowed = level.allowedComponents.includes(c.type);
+                      // Progressive palette: a tool unlocks at the first level that
+                      // teaches it, then stays draggable in every later level
+                      // (distractors appear only after their lesson). A tool no level
+                      // teaches yet (unlockAt === LEVELS.length) reads "Coming soon"
+                      // instead of a fake level number past the curriculum's end.
+                      const unlockAt = UNLOCK_LEVEL[c.type] ?? 0;
+                      const unlocked = levelIdx >= unlockAt && unlockAt < LEVELS.length;
+                      const comingSoon = unlockAt >= LEVELS.length;
                       const Icon = c.icon;
                       return (
                         <div
                           key={c.type}
-                          draggable={allowed}
+                          draggable={unlocked}
                           onDragStart={(e) => e.dataTransfer.setData("application/sdq", c.type)}
+                          title={unlocked ? c.blurb : comingSoon ? `Coming soon — ${c.blurb}` : `Unlocks at Level ${unlockAt + 1} — ${c.blurb}`}
                           className={
                             "flex items-center gap-2.5 rounded-[var(--radius-md)] border px-2.5 py-2 text-sm transition-all " +
-                            (allowed
+                            (unlocked
                               ? "cursor-grab border-line bg-surface text-ink shadow-pop hover:border-brand/40 hover:bg-brand-soft/40 active:cursor-grabbing"
                               : "cursor-not-allowed border-dashed border-line bg-paper-sunken/50 text-muted")
                           }
                         >
-                          <span className="grid size-7 place-items-center rounded-md" style={{ background: allowed ? "var(--brand-soft)" : "transparent", color: allowed ? "var(--brand)" : "var(--muted)" }}>
-                            {allowed ? <Icon size={15} /> : <Lock size={13} />}
+                          <span className="grid size-7 shrink-0 place-items-center rounded-md" style={{ background: unlocked ? "var(--brand-soft)" : "transparent", color: unlocked ? "var(--brand)" : "var(--muted)" }}>
+                            {unlocked ? <Icon size={15} /> : <Lock size={13} />}
                           </span>
-                          <span className="font-semibold">{c.label}</span>
+                          <div className="min-w-0 flex-1">
+                            <span className="font-semibold">{c.label}</span>
+                            {c.kind !== "source" && (
+                              <div className="tabular text-[10px] leading-tight text-muted">
+                                {c.cap === Infinity ? "∞" : c.cap} r/s · {c.baseMs}ms · ${c.cost}/hr
+                              </div>
+                            )}
+                          </div>
+                          {!unlocked && (
+                            <span className="shrink-0 text-[10px] font-semibold text-muted">
+                              {comingSoon ? "Soon" : `Lvl ${unlockAt + 1}`}
+                            </span>
+                          )}
                         </div>
                       );
                     })}
@@ -249,6 +404,20 @@ function PlayInner() {
           </div>
         </Panel>
       </div>
+
+      <AnimatePresence>
+        {showWin && result?.ok && (
+          <SuccessModal
+            result={result}
+            level={level}
+            levelNumber={levelIdx + 1}
+            isLast={levelIdx === LEVELS.length - 1}
+            onNext={() => goLevel(levelIdx + 1)}
+            onReplay={() => setShowWin(false)}
+            onClose={() => setShowWin(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

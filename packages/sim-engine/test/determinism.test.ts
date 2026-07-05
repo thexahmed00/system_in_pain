@@ -29,7 +29,7 @@ describe("determinism gate", () => {
     const r = simulate(standard, level, 12345);
     expect(r.ok).toBe(true);
     expect(r.dims.security).toBe(100);
-    expect(r.metrics.availability).toBeGreaterThanOrEqual(level.winConditions.availability);
+    expect(r.metrics.availability).toBeGreaterThanOrEqual(level.winConditions.steady.availability!);
     expect(r.passed).toBe(true);
     expect(r.final).toBeGreaterThanOrEqual(80);
   });

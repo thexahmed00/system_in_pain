@@ -75,7 +75,7 @@ Engine emits an ordered event trace (the lesson + the animation driver + the AI-
 {
   "seed": 12345,
   "events": [ { "t": 42.0, "node": "n3", "type": "saturation", "utilization": 1.0 } ],
-  "metrics": { "p99LatencyMs": 2100, "availability": 0.94, "costPerHour": 4.20 },
+  "metrics": { "p95LatencyMs": 180, "p99LatencyMs": 2100, "offeredRps": 100, "throughputRps": 94, "availability": 0.94, "costPerHour": 4.20 },
   "score": { "performance": 92, "reliability": 80, "scalability": 95, "cost": 70, "security": 100, "final": 87 }
 }
 ```
@@ -102,13 +102,93 @@ Levels are declarative data, not code — fast authoring, community levels (V3) 
 {
   "id": "tinyurl-1",
   "story": "A startup founder needs a URL shortening service...",
+  "stage": 1,
   "traffic": { "profile": "steady", "rate": "100/min", "readWriteRatio": 0.9 },
   "allowedComponents": ["client", "api-gateway", "sql-db"],
-  "failureInjections": [],
-  "winConditions": { "p99LatencyMs": 200, "availability": 0.99, "maxCostPerHour": 5 }
+  "winConditions": {
+    "steady": {
+      "minThroughputRps": 95,
+      "maxErrorRate": 0.01,
+      "p95LatencyMs": 150,
+      "p99LatencyMs": 200,
+      "availability": 0.99,
+      "maxCostPerHour": 5
+    },
+    "scenarios": [],
+    "resilience": []
+  },
+  "medals": {
+    "silver":   { "maxCostPerHour": 3 },
+    "gold":     { "maxCostPerHour": 2, "p95LatencyMs": 100 },
+    "platinum": { "maxCostPerHour": 1.5 }
+  }
 }
 ```
-The `challenges` table stores this DSL, **not** prose `brief`/`constraints` fields. A challenge that can't drive a sim is a content bug.
+The `levels.spec` JSONB stores this DSL, **not** prose `brief`/`constraints` fields. A level that can't drive a sim is a content bug.
+
+### 7.1 Win conditions — three gate types
+
+A submission passes a level only if it clears **every** gate across all three tiers. Difficulty ramps by *adding gate types*, not just tightening numbers (§7.3). All fields optional — a level sets only what it tests.
+
+**Tier 1 — `steady` (base-load gates).** One sim run at the level's nominal traffic.
+
+| Field | Pass when | Teaches |
+|-------|-----------|---------|
+| `minThroughputRps` | `throughputRps` ≥ value | **Anti silent-drop** — design must actually serve the load, not shed it |
+| `maxErrorRate` | observed 5xx rate ≤ value | Correctness under load |
+| `p95LatencyMs` | observed p95 ≤ value | Typical-case tail (chat, checkout) |
+| `p99LatencyMs` | observed p99 ≤ value | Worst-case stragglers |
+| `availability` | observed ≥ value | Fraction of requests that succeeded |
+| `maxCostPerHour` | observed ≤ value | Punishes over-provisioning |
+
+**Tier 2 — `scenarios` (named traffic events).** Re-run the sim under a different traffic shape; each entry has its own `mustMeet` thresholds (same field vocabulary as `steady`). Tests **scalability**.
+
+```jsonc
+"scenarios": [
+  { "name": "black-friday",   "trafficMultiplier": 10, "mustMeet": { "availability": 0.95, "maxErrorRate": 0.05 } },
+  { "name": "celebrity-spike","profile": "burst",      "mustMeet": { "minThroughputRps": 80 } },
+  { "name": "ddos",           "profile": "attack",     "mustMeet": { "availability": 0.90 } }
+]
+```
+
+**Tier 3 — `resilience` (failure injection).** Re-run the sim with a fault injected; the design must still meet `mustMeet`. Tests **reliability** as an *outcome*, not a checkbox.
+
+```jsonc
+"resilience": [
+  { "inject": "kill-node:any-single", "mustMeet": { "availability": 0.95, "maxRecoveryMs": 5000 } },
+  { "inject": "latency-spike:sql-db", "mustMeet": { "p99LatencyMs": 800 } },
+  { "inject": "region-outage:a",      "mustMeet": { "availability": 0.90 } }
+]
+```
+
+`kill-node:any-single` re-runs the sim once per node, killing each in turn — an architecture with a single point of failure fails at least one run. This **outcome-tests "no SPOF"** instead of structurally counting boxes, staying true to §6's outcomes-not-checkboxes rule.
+
+### 7.2 Throughput & security semantics
+
+**Throughput (anti-cheat-adjacent):** `offeredRps` = traffic pushed; `throughputRps` = requests *successfully completed* per second. A saturated node drops/queues overflow → `throughputRps < offeredRps`. Latency alone is gameable (shed the slow requests, p99 looks great); pairing it with `minThroughputRps` + `maxErrorRate` closes the hole.
+
+**Security is scored as outcome, never presence.** No `requireWAF: true` or `requireRateLimiter: true` — that teaches cargo-cult design. Instead, a `ddos`/`attack` scenario pushes hostile traffic; an architecture without rate limiting visibly **fails the run**. Same for data exposure: a level can model a `client → sql-db` direct path as failing a security scenario rather than as a forbidden edge.
+
+### 7.3 Difficulty ramp by stage
+
+Levels get harder by **adding gate tiers**, not only by tightening thresholds. Stage 1 = ~3 steady gates; Stage 4 = a dozen across all three tiers.
+
+| Stage | `steady` | `scenarios` | `resilience` | Lesson |
+|-------|----------|-------------|--------------|--------|
+| **1 Foundations** | throughput, availability, cost | — | — | make it work, don't overspend |
+| **2 Scaling** | + p95 latency | spike (3×) | — | handle growth — cache / LB |
+| **3 Distributed** | + p99, errorRate | Black Friday (10×) | kill-any-single-node | survive failure, no SPOF |
+| **4 Enterprise** | full | multi-event + DDoS | kill-node + region-outage + latency-spike | failover, multi-region, replication |
+
+Keep Stage 1 generous — frustration in the first session kills retention. 3 gates, roomy numbers.
+
+### 7.4 Medals — graded on *how well*, not just pass/fail
+
+Passing every gate = **Bronze** (level complete). `medals.silver/gold/platinum` are tighter threshold sets (cheaper, faster, survives more) layered on top. Drives replay (§Replayability) and leaderboards.
+
+### 7.5 Engine cost note (multi-run scoring)
+
+Scenarios + resilience gates mean the engine runs **N sims per submission** (1 base + one per scenario + one per node for `kill-node:any-single`). Fine client-side (each run is fast), but backend verification (§5.4) re-runs all N to recompute the score. **Cap N per level** (e.g. ≤ 12 total runs) so verification stays within the §11 latency budget. Store per-gate results in the run `result` so the UI can show which gate failed.
 
 ## 8. Functional Requirements (V2 backend)
 

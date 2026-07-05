@@ -18,6 +18,17 @@ export function isTypeDownAt(injections: FailureInjection[], nodeType: string, t
   return injections.some((f) => f.kind === "node-down" && f.nodeType === nodeType && active(f, t));
 }
 
+/** When did the outage covering time t start for this type? (null = not down).
+    Drives the failover detection window — a standby takes over only after the
+    outage has persisted long enough to be noticed. */
+export function downSinceAt(injections: FailureInjection[], nodeType: string, t: number): number | null {
+  let since: number | null = null;
+  for (const f of injections)
+    if (f.kind === "node-down" && f.nodeType === nodeType && active(f, t))
+      since = since == null ? f.atSecond : Math.min(since, f.atSecond);
+  return since;
+}
+
 /** Extra network latency (ms) to add to a hop at time t (sum of active latency spikes). */
 export function extraLatencyMsAt(injections: FailureInjection[], t: number): number {
   let add = 0;

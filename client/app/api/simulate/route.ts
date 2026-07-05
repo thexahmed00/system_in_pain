@@ -1,5 +1,5 @@
 import { simulate, type Graph } from "@sdq/sim-engine";
-import { TINYURL } from "@/app/play/level-data";
+import { LEVELS_BY_ID } from "@/app/play/level-data";
 
 /**
  * Server-side score verification (PRD §5.4): the backend re-runs the SAME engine
@@ -10,7 +10,6 @@ import { TINYURL } from "@/app/play/level-data";
  * TODO: source levels from the engine (a level registry) instead of importing the
  * client's UI level-data, so this route doesn't pull in presentation code.
  */
-const LEVELS = { [TINYURL.id]: TINYURL } as const;
 
 interface SimulateRequest {
   graph: Graph;
@@ -31,7 +30,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Expected { graph, levelId }" }, { status: 400 });
   }
 
-  const level = LEVELS[levelId as keyof typeof LEVELS];
+  const level = LEVELS_BY_ID[levelId];
   if (!level) {
     return Response.json({ error: `Unknown level: ${levelId}` }, { status: 404 });
   }

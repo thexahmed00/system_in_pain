@@ -2,10 +2,28 @@
   "id": "tinyurl-1",
   "stage": 1,
   "title": "TinyURL",
-  "story": "A startup founder needs a URL shortening service. Users submit long URLs and expect short links instantly. Generate short URLs reliably without breaking the bank.",
-  "traffic": { "profile": "steady", "ratePerMin": 100, "readWriteRatio": 0.9 },
-  "allowedComponents": ["client", "api-gateway", "sql-db", "cache"],
-  "failureInjections": [],
-  "winConditions": { "p99LatencyMs": 200, "availability": 0.99, "maxCostPerHour": 5 },
-  "concepts": ["APIs", "Databases", "Client–Server"]
+  "story": "A founder needs a URL shortener. Light traffic, simple job: take a long URL, hand back a short one. Wire up the basics and make it work.",
+  "traffic": { "profile": "steady", "ratePerMin": 120, "readWriteRatio": 0.9 },
+  "allowedComponents": ["client", "api-gateway", "sql-db"],
+  "winConditions": {
+    "steady": {
+      "minThroughputRps": 1.5,
+      "maxErrorRate": 0.05,
+      "p99LatencyMs": 300,
+      "availability": 0.99,
+      "maxCostPerHour": 6
+    },
+    "scenarios": [],
+    "resilience": []
+  },
+  "medals": {
+    "silver": { "p99LatencyMs": 200 },
+    "gold": { "p99LatencyMs": 150 },
+    "platinum": { "p99LatencyMs": 120 }
+  },
+  "challenges": [
+    { "id": "secure", "label": "Secure", "hint": "Keep the database behind an API — never exposed to the client", "requireSecure": true },
+    { "id": "lean", "label": "Lean", "hint": "Solve it with 2 boxes (no extras)", "maxComponents": 2 }
+  ],
+  "concepts": ["Client–Server", "APIs", "Databases"]
 }
