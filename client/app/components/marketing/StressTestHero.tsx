@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
+import posthog from "posthog-js";
 
 /**
  * Interactive stress-test diagram — the landing's signature moment.
@@ -112,7 +113,7 @@ export function StressTestHero() {
         {SCENARIOS.map((sc, i) => (
           <button
             key={sc.id}
-            onClick={() => setIdx(i)}
+            onClick={() => { setIdx(i); posthog.capture("hero_scenario_changed", { scenario_id: sc.id, scenario_label: sc.label }); }}
             className="relative flex-1 rounded-[calc(var(--radius-md)-4px)] px-2 py-1.5 text-xs font-semibold transition-colors"
             style={{ color: i === idx ? "var(--ink)" : "var(--muted)" }}
           >

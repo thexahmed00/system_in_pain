@@ -1,5 +1,6 @@
 import { simulate, type Graph } from "@sdq/sim-engine";
 import { LEVELS_BY_ID } from "@/app/play/level-data";
+import { getPostHogClient } from "@/app/lib/posthog-server";
 
 /**
  * Server-side score verification (PRD §5.4): the backend re-runs the SAME engine
@@ -36,5 +37,20 @@ export async function POST(req: Request) {
   }
 
   const result = simulate(graph, level, seed);
+
+  const distinctId = req.headers.get("x-posthog-distinct-id") ?? "anon";
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId,
+    event: "simulation_verified",
+    properties: {
+      level_id: levelId,
+      passed: result.passed,
+      score: result.final,
+      node_count: graph.nodes.length,
+      edge_count: graph.edges.length,
+    },
+  });
+
   return Response.json(result);
 }

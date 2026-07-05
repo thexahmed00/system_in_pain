@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { Hammer, Activity, Eye, Sparkles, ArrowRight, Zap } from "lucide-react";
 import { Button, Card, Badge } from "@/app/components/ui";
+import posthog from "posthog-js";
 import { stagger, fadeRise, fade, popIn, spring } from "@/app/lib/motion";
 import { StressTestHero } from "@/app/components/marketing/StressTestHero";
 import { FailureMarquee } from "@/app/components/marketing/FailureMarquee";
@@ -42,7 +43,7 @@ export default function Landing() {
           </span>
           systemInPain<span className="text-brand">.com</span>
         </div>
-        <Link href="/play"><Button variant="secondary" size="sm">Open canvas</Button></Link>
+        <Link href="/play" onClick={() => posthog.capture("play_cta_clicked", { location: "nav" })}><Button variant="secondary" size="sm">Open canvas</Button></Link>
       </header>
 
       {/* HERO — asymmetric, oversized wordmark left / live sim right */}
@@ -67,7 +68,7 @@ export default function Landing() {
           </motion.p>
 
           <motion.div variants={fadeRise} className="flex flex-wrap items-center gap-3 pt-1">
-            <Link href="/play"><Button variant="primary" size="lg">Start playing <ArrowRight size={18} /></Button></Link>
+            <Link href="/play" onClick={() => posthog.capture("play_cta_clicked", { location: "hero_primary" })}><Button variant="primary" size="lg">Start playing <ArrowRight size={18} /></Button></Link>
             <Button variant="ghost" size="lg">See how it works</Button>
           </motion.div>
 
@@ -146,7 +147,7 @@ export default function Landing() {
           <div className="relative">
             <h2 className="font-display text-5xl font-extrabold tracking-tight text-white">Break your first system.</h2>
             <p className="mx-auto mt-3 max-w-md text-white/70">Five levels. A deterministic engine. Zero diagrams to memorize.</p>
-            <Link href="/play" className="mt-8 inline-block"><Button variant="primary" size="lg">Start playing <ArrowRight size={18} /></Button></Link>
+            <Link href="/play" className="mt-8 inline-block" onClick={() => posthog.capture("play_cta_clicked", { location: "final_cta" })}><Button variant="primary" size="lg">Start playing <ArrowRight size={18} /></Button></Link>
           </div>
         </motion.div>
         <p className="label-spec mt-10 text-center">systemInPain.com — the Duolingo of system design</p>

@@ -23,6 +23,7 @@ import {
   selectedSet, healthPainted, edgeFlowPainted, healthCleared, graphReset, graphSeeded,
 } from "@/app/store/architecture.slice";
 import { runStarted, runFinished, simCleared } from "@/app/store/sim.slice";
+import posthog from "posthog-js";
 
 const nodeTypes: NodeTypes = { component: ComponentNode };
 const edgeTypes: EdgeTypes = { flow: FlowEdge };
@@ -72,16 +73,34 @@ function PlayInner() {
     const type = e.dataTransfer.getData("application/sdq");
     if (!type) return;
     dispatch(nodeAdded({ type, position: screenToFlowPosition({ x: e.clientX, y: e.clientY }) }));
+    posthog.capture("component_added", {
+      component_type: type,
+      level_id: level.id,
+      level_title: level.title,
+      level_index: levelIdx,
+    });
     invalidate();
-  }, [dispatch, screenToFlowPosition, invalidate]);
+  }, [dispatch, screenToFlowPosition, invalidate, level, levelIdx]);
 
   const deleteSelected = React.useCallback(() => {
     if (!selected) return;
     dispatch(nodeDeleted(selected));
+    posthog.capture("node_deleted", {
+      level_id: level.id,
+      level_title: level.title,
+      level_index: levelIdx,
+    });
     invalidate();
-  }, [dispatch, selected, invalidate]);
+  }, [dispatch, selected, invalidate, level, levelIdx]);
 
   const run = React.useCallback(() => {
+    posthog.capture("simulation_run", {
+      level_id: level.id,
+      level_title: level.title,
+      level_index: levelIdx,
+      node_count: nodes.length,
+      edge_count: edges.length,
+    });
     dispatch(runStarted());
     const graph = {
       nodes: nodes.map((n) => {
@@ -93,22 +112,58 @@ function PlayInner() {
     const res = simulate(graph, level);
     dispatch(healthPainted(res.nodes));
     dispatch(edgeFlowPainted(res.edgeFlows));
+    posthog.capture("simulation_completed", {
+      level_id: level.id,
+      level_title: level.title,
+      level_index: levelIdx,
+      passed: res.passed,
+      score: res.final,
+      p99_ms: res.ok ? res.metrics.p99 : null,
+      availability: res.ok ? res.metrics.availability : null,
+      cost_per_hour: res.ok ? res.metrics.costPerHour : null,
+      stars_earned: res.ok ? res.stars.filter((s) => s.earned).length : 0,
+      stars_total: res.ok ? res.stars.length : 0,
+    });
+    if (res.ok && res.passed) {
+      posthog.capture("level_completed", {
+        level_id: level.id,
+        level_title: level.title,
+        level_index: levelIdx,
+        score: res.final,
+        stars_earned: res.stars.filter((s) => s.earned).length,
+        stars_total: res.stars.length,
+      });
+    }
     setTimeout(() => dispatch(runFinished(res)), 520);
-  }, [dispatch, nodes, edges, level]);
+  }, [dispatch, nodes, edges, level, levelIdx]);
 
   // levels with a starterGraph open pre-built (L5 starts over-engineered); reset restores it
   const seedCanvas = React.useCallback((lvl: typeof level) => {
     dispatch(lvl.starterGraph ? graphSeeded(lvl.starterGraph) : graphReset());
   }, [dispatch]);
 
-  const reset = React.useCallback(() => { seedCanvas(level); dispatch(simCleared()); setShowWin(false); }, [dispatch, seedCanvas, level]);
+  const reset = React.useCallback(() => {
+    posthog.capture("canvas_reset", {
+      level_id: level.id,
+      level_title: level.title,
+      level_index: levelIdx,
+    });
+    seedCanvas(level); dispatch(simCleared()); setShowWin(false);
+  }, [dispatch, seedCanvas, level, levelIdx]);
   const goLevel = React.useCallback((i: number) => {
     if (i < 0 || i >= LEVELS.length) return;
+    posthog.capture("level_changed", {
+      from_level_index: levelIdx,
+      to_level_index: i,
+      to_level_id: LEVELS[i].id,
+      to_level_title: LEVELS[i].title,
+      direction: i > levelIdx ? "next" : "prev",
+    });
     setLevelIdx(i);
     setShowWin(false);
     seedCanvas(LEVELS[i]);
     dispatch(simCleared());
-  }, [dispatch, seedCanvas]);
+  }, [dispatch, seedCanvas, levelIdx]);
 
   // steady (tier-1) gates this level sets — render only what it tests
   const w = level.winConditions.steady;

@@ -6,6 +6,7 @@ import { Check, ArrowRight, RotateCcw, Star, Circle, PartyPopper } from "lucide-
 import { spring } from "@/app/lib/motion";
 import { Button } from "@/app/components/ui/Button";
 import type { SimResult, Level } from "@sdq/sim-engine";
+import posthog from "posthog-js";
 
 const STAR_GOLD = "#e0a106";
 
@@ -110,7 +111,16 @@ export function SuccessModal({ result, level, levelNumber, isLast, onNext, onRep
         )}
 
         <div className="mt-6 flex gap-3">
-          <Button variant="secondary" className="flex-1" onClick={onReplay}>
+          <Button variant="secondary" className="flex-1" onClick={() => {
+            posthog.capture("level_replay_clicked", {
+              level_number: levelNumber,
+              level_title: level.title,
+              stars_earned: earned,
+              stars_total: total,
+              score: result.final,
+            });
+            onReplay();
+          }}>
             <RotateCcw size={16} /> Replay
           </Button>
           {isLast ? (
@@ -118,7 +128,16 @@ export function SuccessModal({ result, level, levelNumber, isLast, onNext, onRep
               <PartyPopper size={16} /> All done
             </Button>
           ) : (
-            <Button variant="primary" className="flex-1" onClick={onNext}>
+            <Button variant="primary" className="flex-1" onClick={() => {
+              posthog.capture("level_next_clicked", {
+                level_number: levelNumber,
+                level_title: level.title,
+                stars_earned: earned,
+                stars_total: total,
+                score: result.final,
+              });
+              onNext();
+            }}>
               Next problem <ArrowRight size={16} />
             </Button>
           )}
