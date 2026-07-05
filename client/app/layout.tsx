@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Spline_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Analytics } from "@vercel/analytics/next";
 
 // Display — characterful, playful-technical
 const display = Bricolage_Grotesque({
@@ -39,6 +40,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-paper text-ink font-sans">
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
