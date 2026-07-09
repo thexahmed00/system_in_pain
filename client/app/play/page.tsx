@@ -12,6 +12,8 @@ import { FlowEdge } from "@/app/components/canvas/FlowEdge";
 import { Play, RotateCcw, Trash2, ArrowLeft, Lock, Zap, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { Panel } from "@/app/components/ui/Panel";
 import { Badge } from "@/app/components/ui/Badge";
+import { InfoTip } from "@/app/components/ui/InfoTip";
+import { GLOSSARY } from "@/app/lib/glossary";
 import { ComponentNode } from "@/app/components/canvas/ComponentNode";
 import { SuccessModal } from "@/app/components/play/SuccessModal";
 import { CATALOG, GROUP_ORDER, LEVELS, UNLOCK_LEVEL } from "./level-data";
@@ -167,13 +169,13 @@ function PlayInner() {
 
   // steady (tier-1) gates this level sets — render only what it tests
   const w = level.winConditions.steady;
-  const gates: [string, string][] = [];
-  if (w.p95LatencyMs != null) gates.push(["p95 latency", `≤ ${w.p95LatencyMs}ms`]);
-  if (w.p99LatencyMs != null) gates.push(["p99 latency", `≤ ${w.p99LatencyMs}ms`]);
-  if (w.availability != null) gates.push(["availability", `≥ ${(w.availability * 100).toFixed(0)}%`]);
-  if (w.minThroughputRps != null) gates.push(["throughput", `≥ ${w.minThroughputRps} r/s`]);
-  if (w.maxErrorRate != null) gates.push(["error rate", `≤ ${(w.maxErrorRate * 100).toFixed(0)}%`]);
-  if (w.maxCostPerHour != null) gates.push(["cost", `≤ $${w.maxCostPerHour}/hr`]);
+  const gates: [string, string, string][] = [];
+  if (w.p95LatencyMs != null) gates.push(["p95 latency", `≤ ${w.p95LatencyMs}ms`, GLOSSARY.p95Latency]);
+  if (w.p99LatencyMs != null) gates.push(["p99 latency", `≤ ${w.p99LatencyMs}ms`, GLOSSARY.p99Latency]);
+  if (w.availability != null) gates.push(["availability", `≥ ${(w.availability * 100).toFixed(0)}%`, GLOSSARY.availability]);
+  if (w.minThroughputRps != null) gates.push(["throughput", `≥ ${w.minThroughputRps} r/s`, GLOSSARY.throughput]);
+  if (w.maxErrorRate != null) gates.push(["error rate", `≤ ${(w.maxErrorRate * 100).toFixed(0)}%`, GLOSSARY.errorRate]);
+  if (w.maxCostPerHour != null) gates.push(["cost", `≤ $${w.maxCostPerHour}/hr`, GLOSSARY.cost]);
 
   // tier-2 scenario gates (visible rows; pass/fail filled in after a run)
   const scenarios = level.winConditions.scenarios ?? [];
@@ -211,7 +213,7 @@ function PlayInner() {
           <p className="text-sm leading-relaxed text-ink-soft">{level.story}</p>
 
           <div className="mt-5 space-y-2">
-            <p className="label-spec">Traffic</p>
+            <p className="label-spec flex items-center gap-1">Traffic<InfoTip text={GLOSSARY.rps} /></p>
             <div className="rounded-[var(--radius-md)] bg-paper-sunken px-3 py-2">
               {(() => {
                 const rps = Math.round(level.traffic.ratePerMin / 60);
@@ -222,9 +224,14 @@ function PlayInner() {
                 return (
                   <>
                     <div className="text-sm font-semibold text-ink">~{rps} r/s · {shape}</div>
-                    <div className="tabular mt-0.5 text-xs text-muted">
+                    <div className="tabular mt-0.5 flex items-center gap-1 text-xs text-muted">
                       {reads}% reads · {writes}% writes
-                      {bots > 0 && <span className="font-semibold text-[#b91c1c]"> · {bots}% bot traffic</span>}
+                      <InfoTip text={GLOSSARY.readWrite} />
+                      {bots > 0 && (
+                        <span className="flex items-center gap-1 font-semibold text-[#b91c1c]">
+                          · {bots}% bot traffic<InfoTip text={GLOSSARY.botTraffic} />
+                        </span>
+                      )}
                     </div>
                   </>
                 );
@@ -235,8 +242,11 @@ function PlayInner() {
           <div className="mt-5 space-y-2">
             <p className="label-spec">Win conditions</p>
             <ul className="space-y-1.5 text-sm">
-              {gates.map(([k, v]) => (
-                <li key={k} className="flex justify-between"><span className="text-muted">{k}</span><span className="tabular font-semibold text-ink">{v}</span></li>
+              {gates.map(([k, v, tip]) => (
+                <li key={k} className="flex justify-between">
+                  <span className="flex items-center gap-1 text-muted">{k}<InfoTip text={tip} /></span>
+                  <span className="tabular font-semibold text-ink">{v}</span>
+                </li>
               ))}
             </ul>
 
@@ -300,13 +310,13 @@ function PlayInner() {
 
                     <motion.div variants={fadeRise} className="mb-4 grid grid-cols-2 gap-2">
                       {[
-                        ["p99", `${result.metrics.p99}ms`],
-                        ["avail", `${(result.metrics.availability * 100).toFixed(1)}%`],
-                        ["cost", `$${result.metrics.costPerHour}/hr`],
-                        ["tps", `${Math.round(result.metrics.throughput)}r/s`],
-                      ].map(([k, v]) => (
+                        ["p99", `${result.metrics.p99}ms`, GLOSSARY.p99Latency],
+                        ["avail", `${(result.metrics.availability * 100).toFixed(1)}%`, GLOSSARY.availability],
+                        ["cost", `$${result.metrics.costPerHour}/hr`, GLOSSARY.cost],
+                        ["tps", `${Math.round(result.metrics.throughput)}r/s`, GLOSSARY.throughput],
+                      ].map(([k, v, tip]) => (
                         <div key={k} className="rounded-[var(--radius-md)] bg-paper-sunken px-2 py-1.5">
-                          <div className="label-spec">{k}</div>
+                          <div className="label-spec flex items-center gap-1">{k}<InfoTip text={tip} /></div>
                           <div className="tabular text-sm font-bold text-ink">{v}</div>
                         </div>
                       ))}
@@ -318,7 +328,10 @@ function PlayInner() {
                         return (
                           <div key={k} className={active ? "" : "opacity-40"}>
                             <div className="mb-1 flex justify-between text-xs">
-                              <span className="text-ink-soft">{label}{!active && <span className="ml-1 text-[10px] text-muted">not tested</span>}</span>
+                              <span className="flex items-center gap-1 text-ink-soft">
+                                {label}<InfoTip text={GLOSSARY[k]} />
+                                {!active && <span className="ml-1 text-[10px] text-muted">not tested</span>}
+                              </span>
                               <span className="tabular font-semibold text-ink">{active ? result.dims[k] : "—"}</span>
                             </div>
                             <div className="h-1.5 overflow-hidden rounded-full bg-paper-sunken">
@@ -437,7 +450,10 @@ function PlayInner() {
                             {unlocked ? <Icon size={15} /> : <Lock size={13} />}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <span className="font-semibold">{c.label}</span>
+                            <span className="inline-flex items-center gap-1 font-semibold">
+                              {c.label}
+                              {unlocked && <InfoTip text={c.blurb} />}
+                            </span>
                             {c.kind !== "source" && (
                               <div className="tabular text-[10px] leading-tight text-muted">
                                 {c.cap === Infinity ? "∞" : c.cap} r/s · {c.baseMs}ms · ${c.cost}/hr

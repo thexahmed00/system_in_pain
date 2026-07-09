@@ -5,3 +5,4 @@ export { Badge } from "./Badge";
 export type { BadgeProps } from "./Badge";
 export { Panel } from "./Panel";
 export { MetricStat } from "./MetricStat";
+export { InfoTip } from "./InfoTip";
