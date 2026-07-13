@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Spline_Sans, JetBrains_Mono } from "next/font/goog
 import "./globals.css";
 import { Providers } from "./providers";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // Display — characterful, playful-technical
 const display = Bricolage_Grotesque({
@@ -41,6 +42,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-paper text-ink font-sans">
         <Providers>{children}</Providers>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
