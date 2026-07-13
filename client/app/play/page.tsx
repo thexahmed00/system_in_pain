@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, BackgroundVariant,
@@ -15,9 +16,9 @@ import { Badge } from "@/app/components/ui/Badge";
 import { InfoTip } from "@/app/components/ui/InfoTip";
 import { GLOSSARY } from "@/app/lib/glossary";
 import { ComponentNode } from "@/app/components/canvas/ComponentNode";
-import { SuccessModal } from "@/app/components/play/SuccessModal";
+import { ResultModal } from "@/app/components/play/ResultModal";
 import { CATALOG, GROUP_ORDER, LEVELS, UNLOCK_LEVEL } from "./level-data";
-import { simulate, type SimResult } from "@sdq/sim-engine";
+import { simulate } from "@sdq/sim-engine";
 import { stagger, fadeRise, popIn, spring } from "@/app/lib/motion";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import {
@@ -25,42 +26,51 @@ import {
   selectedSet, healthPainted, edgeFlowPainted, healthCleared, graphReset, graphSeeded,
 } from "@/app/store/architecture.slice";
 import { runStarted, runFinished, simCleared } from "@/app/store/sim.slice";
+import { levelPassed } from "@/app/store/progress.slice";
+import { isLevelUnlocked, highestUnlockedIndex } from "@/app/lib/level-lock";
+import { DIM_LABELS, dimColor } from "@/app/lib/sim-display";
 import posthog from "posthog-js";
 
 const nodeTypes: NodeTypes = { component: ComponentNode };
 const edgeTypes: EdgeTypes = { flow: FlowEdge };
 
-const DIM_LABELS: [keyof SimResult["dims"], string][] = [
-  ["performance", "Performance"], ["reliability", "Reliability"],
-  ["scalability", "Scalability"], ["cost", "Cost"], ["security", "Security"],
-];
-
-function dimColor(v: number) {
-  return v >= 80 ? "var(--healthy)" : v >= 50 ? "var(--load)" : "var(--bottleneck)";
-}
-
 function PlayInner() {
   const dispatch = useAppDispatch();
-  const [levelIdx, setLevelIdx] = React.useState(0);
-  const [showWin, setShowWin] = React.useState(false);
-  const level = LEVELS[levelIdx];
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [rawLevelIdx, setLevelIdx] = React.useState(() => {
+    const requested = searchParams.get("level");
+    const idx = requested ? LEVELS.findIndex((l) => l.id === requested) : -1;
+    return idx !== -1 ? idx : 0;
+  });
+  const [showResult, setShowResult] = React.useState(false);
   const nodes = useAppSelector((s) => s.architecture.nodes);
   const edges = useAppSelector((s) => s.architecture.edges);
   const selected = useAppSelector((s) => s.architecture.selected);
   const result = useAppSelector((s) => s.sim.result);
   const running = useAppSelector((s) => s.sim.running);
+  const progressHydrated = useAppSelector((s) => s.progress.hydrated);
+  const byLevelId = useAppSelector((s) => s.progress.byLevelId);
   const { screenToFlowPosition } = useReactFlow();
 
-  // celebrate when a run passes
+  // a deep link (or stale URL) can point at a level not yet unlocked — once progress
+  // has loaded from localStorage, render the highest reachable level instead. Derived
+  // at render time (not via an effect) so there's no extra state to keep in sync.
+  const levelIdx = progressHydrated && !isLevelUnlocked(rawLevelIdx, byLevelId)
+    ? highestUnlockedIndex(byLevelId)
+    : rawLevelIdx;
+  const level = LEVELS[levelIdx];
+
+  // show the result dialog after every graded run — pass or fail
   React.useEffect(() => {
-    if (result?.ok && result.passed) setShowWin(true);
+    if (result?.ok) setShowResult(true);
   }, [result]);
 
   // any structural edit invalidates the last run
   const invalidate = React.useCallback(() => {
     dispatch(simCleared());
     dispatch(healthCleared());
-    setShowWin(false);
+    setShowResult(false);
   }, [dispatch]);
 
   const onNodesChange = React.useCallback((c: NodeChange[]) => dispatch(nodesChanged(c)), [dispatch]);
@@ -135,6 +145,12 @@ function PlayInner() {
         stars_earned: res.stars.filter((s) => s.earned).length,
         stars_total: res.stars.length,
       });
+      dispatch(levelPassed({
+        levelId: level.id,
+        score: res.final,
+        starsEarned: res.stars.filter((s) => s.earned).length,
+        starsTotal: res.stars.length,
+      }));
     }
     setTimeout(() => dispatch(runFinished(res)), 520);
   }, [dispatch, nodes, edges, level, levelIdx]);
@@ -150,10 +166,11 @@ function PlayInner() {
       level_title: level.title,
       level_index: levelIdx,
     });
-    seedCanvas(level); dispatch(simCleared()); setShowWin(false);
+    seedCanvas(level); dispatch(simCleared()); setShowResult(false);
   }, [dispatch, seedCanvas, level, levelIdx]);
   const goLevel = React.useCallback((i: number) => {
     if (i < 0 || i >= LEVELS.length) return;
+    if (!isLevelUnlocked(i, byLevelId)) return;
     posthog.capture("level_changed", {
       from_level_index: levelIdx,
       to_level_index: i,
@@ -162,10 +179,11 @@ function PlayInner() {
       direction: i > levelIdx ? "next" : "prev",
     });
     setLevelIdx(i);
-    setShowWin(false);
+    setShowResult(false);
     seedCanvas(LEVELS[i]);
     dispatch(simCleared());
-  }, [dispatch, seedCanvas, levelIdx]);
+    router.replace(`/play?level=${LEVELS[i].id}`, { scroll: false });
+  }, [dispatch, seedCanvas, levelIdx, byLevelId, router]);
 
   // steady (tier-1) gates this level sets — render only what it tests
   const w = level.winConditions.steady;
@@ -187,12 +205,12 @@ function PlayInner() {
       {/* top bar */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-surface px-4">
         <div className="flex items-center gap-3">
-          <Link href="/" className="text-muted transition-colors hover:text-ink"><ArrowLeft size={18} /></Link>
+          <Link href="/levels" className="text-muted transition-colors hover:text-ink"><ArrowLeft size={18} /></Link>
           <span className="grid size-6 place-items-center rounded-md bg-brand text-white"><Zap size={13} fill="currentColor" /></span>
           <div className="flex items-center gap-1">
             <button onClick={() => goLevel(levelIdx - 1)} disabled={levelIdx === 0} aria-label="Previous level" className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"><ChevronLeft size={16} /></button>
             <span className="font-display font-bold text-ink">Level {levelIdx + 1} · {level.title}</span>
-            <button onClick={() => goLevel(levelIdx + 1)} disabled={levelIdx === LEVELS.length - 1} aria-label="Next level" className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"><ChevronRight size={16} /></button>
+            <button onClick={() => goLevel(levelIdx + 1)} disabled={levelIdx === LEVELS.length - 1 || !isLevelUnlocked(levelIdx + 1, byLevelId)} aria-label="Next level" className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"><ChevronRight size={16} /></button>
           </div>
           <Badge tone="neutral" className="!text-[10px]">{level.concepts[0]?.toUpperCase()}</Badge>
         </div>
@@ -211,6 +229,33 @@ function PlayInner() {
         {/* LEFT — question + result */}
         <Panel kicker={`Stage ${level.stage} · ${level.concepts.join(" · ")}`} title={level.title}>
           <p className="text-sm leading-relaxed text-ink-soft">{level.story}</p>
+
+          {level.requirements && (
+            <div className="mt-5 space-y-3">
+              <p className="label-spec">Requirements</p>
+              {(
+                [
+                  ["Functional", level.requirements.functional, "text-ink-soft"],
+                  ["Non-functional", level.requirements.nonFunctional, "text-ink-soft"],
+                  ["Constraints", level.requirements.constraints, "text-ink-soft"],
+                  ["Out of scope", level.requirements.outOfScope, "text-muted"],
+                ] as [string, string[] | undefined, string][]
+              )
+                .filter(([, items]) => items && items.length > 0)
+                .map(([heading, items, tone]) => (
+                  <div key={heading}>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">{heading}</p>
+                    <ul className="space-y-1">
+                      {items!.map((item) => (
+                        <li key={item} className={`flex gap-1.5 text-sm leading-snug ${tone}`}>
+                          <span className="text-muted">·</span>{item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          )}
 
           <div className="mt-5 space-y-2">
             <p className="label-spec flex items-center gap-1">Traffic<InfoTip text={GLOSSARY.rps} /></p>
@@ -477,15 +522,15 @@ function PlayInner() {
       </div>
 
       <AnimatePresence>
-        {showWin && result?.ok && (
-          <SuccessModal
+        {showResult && result?.ok && (
+          <ResultModal
             result={result}
             level={level}
             levelNumber={levelIdx + 1}
             isLast={levelIdx === LEVELS.length - 1}
             onNext={() => goLevel(levelIdx + 1)}
-            onReplay={() => setShowWin(false)}
-            onClose={() => setShowWin(false)}
+            onReplay={() => setShowResult(false)}
+            onClose={() => setShowResult(false)}
           />
         )}
       </AnimatePresence>
@@ -495,8 +540,10 @@ function PlayInner() {
 
 export default function PlayPage() {
   return (
-    <ReactFlowProvider>
-      <PlayInner />
-    </ReactFlowProvider>
+    <React.Suspense fallback={null}>
+      <ReactFlowProvider>
+        <PlayInner />
+      </ReactFlowProvider>
+    </React.Suspense>
   );
 }

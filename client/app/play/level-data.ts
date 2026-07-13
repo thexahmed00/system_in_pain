@@ -76,6 +76,15 @@ export const LEVELS: Level[] = [
     title: "TinyURL",
     story:
       "A founder needs a URL shortener. Light traffic, simple job: take a long URL, hand back a short one. Wire up the basics and make it work.",
+    requirements: {
+      functional: [
+        "User submits a long URL and gets back a short one",
+        "User visits a short link and is redirected to the original URL",
+      ],
+      nonFunctional: ["~2 requests/sec average", "p99 latency ≤ 300ms", "99% availability"],
+      constraints: ["Budget: $6/hr or less", "90% of traffic is reads (resolving links), not writes (creating them)"],
+      outOfScope: ["Custom aliases", "Link expiration", "Click analytics"],
+    },
     traffic: { profile: "steady", ratePerMin: 120, readWriteRatio: 0.9 },
     allowedComponents: ["client", "api-gateway", "sql-db"],
     winConditions: {
@@ -101,6 +110,15 @@ export const LEVELS: Level[] = [
     title: "Pastebin",
     story:
       "Your paste-sharing site went viral on a forum. 90% of traffic is people reading the same popular pastes — and the database is buckling. The budget is too tight to just buy more database; make the reads cheaper instead.",
+    requirements: {
+      functional: [
+        "User submits a block of text and gets a paste URL",
+        "User visits a paste URL and reads its contents",
+      ],
+      nonFunctional: ["~300 requests/sec", "90% reads, concentrated on a handful of viral pastes", "p99 latency ≤ 200ms", "99% availability"],
+      constraints: ["Budget: $7/hr or less — can't just scale the database vertically"],
+      outOfScope: ["Paste editing", "User accounts", "Setting visibility/custom links"],
+    },
     traffic: { profile: "steady", ratePerMin: 18000, readWriteRatio: 0.9 },
     allowedComponents: ["client", "api-gateway", "sql-db", "cache"],
     winConditions: {
@@ -128,6 +146,12 @@ export const LEVELS: Level[] = [
     title: "Write Firehose",
     story:
       "A telemetry service ingests a flood of events — 300 per second, and 80% of them are writes that must be stored. A read-cache can't help you here (there's nothing to cache), and your SQL database is drowning. Pick a datastore actually built for this write volume.",
+    requirements: {
+      functional: ["Service accepts a continuous stream of telemetry events and durably stores each one"],
+      nonFunctional: ["~300 events/sec", "80% writes, 20% reads", "p99 latency ≤ 200ms", "99% availability"],
+      constraints: ["Budget: $7/hr or less", "A read-cache does not help — nothing here is read twice"],
+      outOfScope: ["Event replay/reprocessing", "Real-time aggregation"],
+    },
     traffic: { profile: "steady", ratePerMin: 18000, readWriteRatio: 0.2 },
     allowedComponents: ["client", "api-gateway", "sql-db", "nosql-db", "cache"],
     winConditions: {
@@ -150,6 +174,12 @@ export const LEVELS: Level[] = [
     title: "Flash Sale",
     story:
       "An e-commerce store is running a flash sale. Normal traffic is fine — but when the sale drops, demand spikes 5×. Build a system that doesn't fall over the moment everyone shows up at once.",
+    requirements: {
+      functional: ["Shoppers browse products and check out"],
+      nonFunctional: ["~200 requests/sec baseline, 90% reads", "must survive a 5× spike (~1,000 r/s) at ≥ 95% availability", "p99 latency ≤ 250ms at baseline"],
+      constraints: ["Budget: $16/hr or less — headroom for the spike still has to fit the budget"],
+      outOfScope: ["Payment processing details", "Inventory locking"],
+    },
     traffic: { profile: "steady", ratePerMin: 12000, readWriteRatio: 0.9 },
     allowedComponents: ["client", "api-gateway", "sql-db", "cache"],
     winConditions: {
@@ -178,6 +208,12 @@ export const LEVELS: Level[] = [
     title: "Lean Startup",
     story:
       "You inherited this system from an engineer who never met a component they didn't like. The load is modest and read-heavy — nowhere near what this stack was built for — and the burn rate is eating the runway. Nothing here is broken; there's just too much of it. Strip it back to the smallest design that still meets the bar.",
+    requirements: {
+      functional: ["A standard read-mostly app — nothing new to build, just right-size what's already running"],
+      nonFunctional: ["~150 requests/sec", "95% reads", "p99 latency ≤ 150ms", "99% availability"],
+      constraints: ["Budget: $6/hr or less — the inherited stack costs $12/hr for load it doesn't need"],
+      outOfScope: ["New features — this is a cost pass on an existing system, not a redesign"],
+    },
     traffic: { profile: "steady", ratePerMin: 9000, readWriteRatio: 0.95 },
     allowedComponents: ["client", "api-gateway", "sql-db", "cache"],
     starterGraph: {
@@ -221,6 +257,12 @@ export const LEVELS: Level[] = [
     title: "Event Pipeline",
     story:
       "Your telemetry service ingests 150 events per second, nearly all writes — and every night the batch upload window triples the firehose for ten straight seconds. The database keeps up on average but drowns in the burst, and the backlog wrecks the rest of the hour. Decouple the write path so a burst is absorbed, not fatal.",
+    requirements: {
+      functional: ["Service ingests a steady stream of write-heavy telemetry events, with a nightly batch window"],
+      nonFunctional: ["~150 events/sec baseline", "95% writes", "a nightly 3× burst lasting 10 seconds", "availability ≥ 96% through the burst"],
+      constraints: ["Budget: $7/hr or less", "The database's own capacity can absorb the average load, just not the burst"],
+      outOfScope: ["Exactly-once delivery guarantees", "Event ordering"],
+    },
     traffic: { profile: "bursty", ratePerMin: 9000, readWriteRatio: 0.05 },
     allowedComponents: ["client", "api-gateway", "queue", "sql-db"],
     failureInjections: [{ kind: "spike", atSecond: 25, durationSec: 10, multiplier: 3 }],
@@ -248,6 +290,12 @@ export const LEVELS: Level[] = [
     title: "Service Tiers",
     story:
       "Your app grew from a script into a real service. Right now the gateway does everything — routing AND business logic AND database calls — and the team keeps stepping on each other. Split the concerns: let the gateway be the front door and move the application logic into its own tier behind it.",
+    requirements: {
+      functional: ["Gateway handles routing/ingress only; business logic and data access move to a dedicated app tier"],
+      nonFunctional: ["~150 requests/sec", "80% reads", "p99 latency ≤ 250ms", "99% availability"],
+      constraints: ["Budget: $12/hr or less", "The gateway must never talk to the database directly — the app tier is a hard boundary, not a suggestion"],
+      outOfScope: ["Multiple app-tier services (this is one backend, not a microservice split)"],
+    },
     traffic: { profile: "steady", ratePerMin: 9000, readWriteRatio: 0.8 },
     allowedComponents: ["client", "api-gateway", "backend", "sql-db", "cache"],
     requireAppTier: true,
@@ -273,6 +321,12 @@ export const LEVELS: Level[] = [
     title: "Global Reads",
     story:
       "A breaking story goes viral — 30,000 requests per minute, 95% of them reading the same content. The origin server is on its knees. Serve the world at the edge before it ever reaches your data center.",
+    requirements: {
+      functional: ["Serve the same viral content to a globally distributed audience"],
+      nonFunctional: ["~500 requests/sec", "95% reads of the same content", "p99 latency ≤ 150ms", "99% availability"],
+      constraints: ["Budget: $12/hr or less", "The origin alone cannot take this load — content has to be served closer to readers"],
+      outOfScope: ["Personalized/dynamic content (this traffic is all the same static story)"],
+    },
     traffic: { profile: "steady", ratePerMin: 30000, readWriteRatio: 0.95 },
     allowedComponents: ["client", "cdn", "api-gateway", "cache", "sql-db"],
     winConditions: {
@@ -297,6 +351,12 @@ export const LEVELS: Level[] = [
     title: "Viral Scale",
     story:
       "A product launch drives 126,000 requests per minute. One API server handles 500 r/s; scaled to the maximum (×4) it reaches 2,000 r/s — still not enough. The only way forward is to break through the single-machine ceiling with a fleet behind a Load Balancer.",
+    requirements: {
+      functional: ["Serve sustained (not transient) product-launch traffic across a fleet of app servers"],
+      nonFunctional: ["~2,100 requests/sec", "95% reads", "p99 latency ≤ 200ms", "99% availability"],
+      constraints: ["Budget: $35/hr or less", "One node's vertical ceiling (500 r/s × 4 instances = 2,000 r/s) is not enough on its own — fan-out across multiple nodes is required"],
+      outOfScope: ["Multi-region deployment"],
+    },
     traffic: { profile: "steady", ratePerMin: 126000, readWriteRatio: 0.95 },
     allowedComponents: ["client", "load-balancer", "reverse-proxy", "api-gateway", "cache", "sql-db"],
     winConditions: {
@@ -326,6 +386,12 @@ export const LEVELS: Level[] = [
     title: "Rush Hour",
     story:
       "A regional delivery app is having its best week ever — real growth, not a viral spike, and it needs a front door to fan traffic across a small fleet. It's nowhere near the scale that justifies the premium managed load balancer your last job always reached for. Match the front door to the traffic you actually have.",
+    requirements: {
+      functional: ["Front door fans traffic out across a small fleet of app servers"],
+      nonFunctional: ["~2,400 requests/sec", "95% reads", "p99 latency ≤ 200ms", "99% availability"],
+      constraints: ["Budget: $22/hr or less", "Traffic is well under either front-door option's ceiling — this is a price/performance decision, not a capacity one"],
+      outOfScope: ["Multi-region routing", "Geo-based traffic steering"],
+    },
     traffic: { profile: "steady", ratePerMin: 144000, readWriteRatio: 0.95 },
     allowedComponents: ["client", "load-balancer", "reverse-proxy", "api-gateway", "cache", "nosql-db"],
     winConditions: {
@@ -352,6 +418,12 @@ export const LEVELS: Level[] = [
     title: "Split the Streams",
     story:
       "Your read cache is doing its job on the 90%-read load — but every write is being funneled through it too, and a cache is no place for a write. Wire it the real way: reads served from the cache, writes going straight to the datastore. Run it and watch the two streams separate.",
+    requirements: {
+      functional: ["Reads are served from the cache; writes go straight to the datastore, never through the cache"],
+      nonFunctional: ["~300 requests/sec", "90% reads", "p99 latency ≤ 250ms", "99% availability"],
+      constraints: ["Budget: $10/hr or less", "Every datastore must sit behind the API — nothing client-facing"],
+      outOfScope: ["Cache invalidation strategy details", "Write-through/write-behind caching"],
+    },
     traffic: { profile: "steady", ratePerMin: 18000, readWriteRatio: 0.9 },
     allowedComponents: ["client", "api-gateway", "cache", "sql-db", "nosql-db"],
     requireWriteSplit: true,
@@ -382,6 +454,12 @@ export const LEVELS: Level[] = [
     title: "Read Replica",
     story:
       "Your billing system is relational for a reason — the finance team will not sign off on a NoSQL migration. But read traffic has outgrown what the primary can vertically scale to, no matter how much you're willing to spend on it. Scale the reads without touching the write path.",
+    requirements: {
+      functional: ["Scale read capacity for a relational billing system without changing the write path"],
+      nonFunctional: ["~700 requests/sec", "95% reads", "p99 latency ≤ 200ms", "99% availability"],
+      constraints: ["Budget: $21/hr or less", "Must stay relational — no NoSQL migration", "The primary's vertical ceiling can't be bought past, no matter the budget"],
+      outOfScope: ["Multi-primary/multi-region writes"],
+    },
     traffic: { profile: "steady", ratePerMin: 42000, readWriteRatio: 0.95 },
     allowedComponents: ["client", "api-gateway", "sql-db", "read-replica"],
     winConditions: {
@@ -407,6 +485,12 @@ export const LEVELS: Level[] = [
     title: "Always On",
     story:
       "Your payments service can't blink. At peak, a hardware fault takes the primary database offline for 20 seconds. Adding more capacity won't save you — a dead database at any size is still dead. Design so a single component failure never takes the whole system down.",
+    requirements: {
+      functional: ["Payments service keeps serving requests through a primary database outage"],
+      nonFunctional: ["~100 requests/sec", "50/50 read-write split", "availability ≥ 95% through a 20-second primary outage"],
+      constraints: ["Budget: $12/hr or less", "Every database must sit behind the API — never exposed to the client", "More capacity does not fix an outage — only redundancy does"],
+      outOfScope: ["Multi-region disaster recovery"],
+    },
     traffic: { profile: "steady", ratePerMin: 6000, readWriteRatio: 0.5 },
     allowedComponents: ["client", "api-gateway", "sql-db", "db-standby"],
     failureInjections: [{ kind: "node-down", atSecond: 20, durationSec: 20, nodeType: "sql-db" }],
@@ -437,6 +521,12 @@ export const LEVELS: Level[] = [
     title: "Bot Flood",
     story:
       "Your ticket-sales site is getting scraped to death: half of all traffic is bots hammering random pages. Your cache can't help — the junk requests never repeat, so every one of them punches through to the database while real customers watch spinners. Stop the flood at the front door, before it touches your origin.",
+    requirements: {
+      functional: ["Legitimate customers get served while bot traffic is filtered before it reaches the database"],
+      nonFunctional: ["~350 requests/sec total", "50% of it malicious bot traffic that never cache-hits", "p99 latency ≤ 250ms", "99% availability for legitimate users"],
+      constraints: ["Budget: $9/hr or less", "Attack traffic must be filtered at the edge — a cache alone does not stop it"],
+      outOfScope: ["CAPTCHA/bot-detection heuristics — the filter is a black box you place, not build"],
+    },
     traffic: { profile: "steady", ratePerMin: 21000, readWriteRatio: 0.9, maliciousRatio: 0.5 },
     allowedComponents: ["client", "waf", "rate-limiter", "api-gateway", "cache", "sql-db"],
     winConditions: {
@@ -466,6 +556,12 @@ export const LEVELS: Level[] = [
     title: "Overwhelmed",
     story:
       "Bot Flood's attacker is back with a botnet ten times the size. Whatever filtered through last time isn't cutting it — the leaked traffic alone is enough to bury your origin. A rough volumetric shield was fine before; this flood needs tighter inspection at the edge.",
+    requirements: {
+      functional: ["Legitimate customers stay served through a much larger botnet attack than before"],
+      nonFunctional: ["~2,500 requests/sec total", "96% malicious", "p99 latency ≤ 250ms under fire", "availability ≥ 97% for legitimate users"],
+      constraints: ["Budget: $10/hr or less", "It's not enough for the filter to block most attackers — what leaks through must itself stay under the origin's real capacity"],
+      outOfScope: ["IP-reputation lists", "Custom WAF rule authoring"],
+    },
     traffic: { profile: "steady", ratePerMin: 150000, readWriteRatio: 0.9, maliciousRatio: 0.96 },
     allowedComponents: ["client", "waf", "rate-limiter", "api-gateway", "nosql-db"],
     winConditions: {

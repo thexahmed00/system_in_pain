@@ -124,6 +124,15 @@ export interface Level {
   stage: number;
   title: string;
   story: string;
+  /** Optional expanded brief (interview-style scoping) shown alongside the story.
+      Mirrors the classic use-cases/constraints breakdown so players learn to scope
+      before they build, not just react to a one-line prompt. */
+  requirements?: {
+    functional: string[];
+    nonFunctional?: string[];
+    constraints?: string[];
+    outOfScope?: string[];
+  };
   traffic: Traffic;
   allowedComponents: string[];
   /** Internal sim fault mechanism. The level DSL expresses faults via

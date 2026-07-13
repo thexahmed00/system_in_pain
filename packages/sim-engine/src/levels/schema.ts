@@ -85,6 +85,14 @@ export const levelSchema = z.object({
   stage: z.number().int().positive(),
   title: z.string(),
   story: z.string(),
+  requirements: z
+    .object({
+      functional: z.array(z.string()).min(1),
+      nonFunctional: z.array(z.string()).optional(),
+      constraints: z.array(z.string()).optional(),
+      outOfScope: z.array(z.string()).optional(),
+    })
+    .optional(),
   traffic: trafficSchema,
   allowedComponents: z.array(z.string()).min(1),
   failureInjections: z.array(failureInjectionSchema).default([]),

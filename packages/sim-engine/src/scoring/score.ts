@@ -27,8 +27,8 @@ function computeStars(graph: Graph, level: Level, m: Metrics, security: number, 
 
 const pretty = (t: string) => t.replace(/-/g, " ");
 
-/** Does an observed run clear a threshold gate? Only enforces metrics the engine
-    measures today (avail, p99, errorRate, cost); p95/throughput are TODO. */
+/** Does an observed run clear a threshold gate? Enforces every metric the engine
+    measures today (avail, p99, errorRate, cost, throughput); p95 is TODO. */
 function meets(m: Metrics, t: Thresholds): boolean {
   const errorRate = 1 - m.availability;
   return (
@@ -86,9 +86,9 @@ export interface Score {
 }
 
 /** Grade a run on five outcome dimensions (never on which components are present).
-    Enforces the `steady` (tier-1) gates today; `scenarios`/`resilience` gates
-    (PRD §7.1 tiers 2–3) are declared in the DSL but not yet run here — TODO: iterate
-    them once the engine exposes p95/throughput at the metrics level. */
+    Enforces the `steady` (tier-1) gates and re-runs every `scenarios` (tier-2) gate;
+    `resilience` gates (PRD §7.1 tier 3) are declared in the DSL but not yet
+    enforced here — TODO. */
 export function score(graph: Graph, base: RunOnce, level: Level, seed: number): Score {
   const w = level.winConditions.steady;
   const m = base.metrics;
