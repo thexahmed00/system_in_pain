@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Spline_Sans, JetBrains_Mono } from "next/font/goog
 import "./globals.css";
 import { Providers } from "./providers";
 import { Analytics } from "@vercel/analytics/next";
+import { auth0 } from "@/app/lib/auth0";
 
 // Display — characterful, playful-technical
 const display = Bricolage_Grotesque({
@@ -30,16 +31,18 @@ export const metadata: Metadata = {
   description: "Learn system design by building, breaking, and scaling real systems.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const session = await auth0.getSession();
+
   return (
     <html
       lang="en"
       className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-paper text-ink font-sans">
-        <Providers>{children}</Providers>
+        <Providers user={session?.user}>{children}</Providers>
         <Analytics />
       </body>
     </html>

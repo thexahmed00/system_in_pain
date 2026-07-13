@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowLeft, Lock, Star, Zap } from "lucide-react";
+import { ArrowLeft, Lock, LogIn, Star, Zap } from "lucide-react";
+import { useUser } from "@auth0/nextjs-auth0/client";
 import { Card, CardTitle, Badge, Button } from "@/app/components/ui";
 import { LEVELS } from "@/app/play/level-data";
-import { isLevelUnlocked } from "@/app/lib/level-lock";
+import { isLevelUnlocked, needsLogin } from "@/app/lib/level-lock";
 import { useAppSelector } from "@/app/store/hooks";
 import { stagger, fadeRise, popIn } from "@/app/lib/motion";
 
@@ -13,6 +14,8 @@ export default function LevelsPage() {
   const hydrated = useAppSelector((s) => s.progress.hydrated);
   const byLevelId = useAppSelector((s) => s.progress.byLevelId);
   const passedCount = Object.values(byLevelId).filter((p) => p.passed).length;
+  const { user } = useUser();
+  const loggedIn = !!user;
 
   return (
     <div className="relative min-h-screen bg-paper">
@@ -43,7 +46,8 @@ export default function LevelsPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {LEVELS.map((level, i) => {
-            const unlocked = !hydrated || isLevelUnlocked(i, byLevelId);
+            const unlocked = !hydrated || isLevelUnlocked(i, byLevelId, loggedIn);
+            const loginLocked = hydrated && needsLogin(i, byLevelId, loggedIn);
             const p = byLevelId[level.id];
             const card = (
               <Card
@@ -66,7 +70,7 @@ export default function LevelsPage() {
                       ))}
                     </div>
                   ) : !unlocked ? (
-                    <Lock size={16} className="text-muted" />
+                    loginLocked ? <LogIn size={16} className="text-muted" /> : <Lock size={16} className="text-muted" />
                   ) : null}
                 </div>
 
@@ -84,6 +88,10 @@ export default function LevelsPage() {
                     <Button variant={p?.passed ? "secondary" : "primary"} size="sm" className="w-full">
                       {p?.passed ? "Replay" : "Play"}
                     </Button>
+                  ) : loginLocked ? (
+                    <Button variant="primary" size="sm" className="w-full">
+                      <LogIn size={13} /> Log in to continue
+                    </Button>
                   ) : (
                     <Button variant="secondary" size="sm" className="w-full" disabled>
                       <Lock size={13} /> Locked
@@ -97,6 +105,10 @@ export default function LevelsPage() {
               <motion.div key={level.id} variants={popIn}>
                 {unlocked ? (
                   <Link href={`/play?level=${level.id}`} className="block h-full" aria-label={`Play ${level.title}`}>
+                    {card}
+                  </Link>
+                ) : loginLocked ? (
+                  <Link href={`/auth/login?returnTo=${encodeURIComponent(`/play?level=${level.id}`)}`} className="block h-full" aria-label={`Log in to unlock ${level.title}`}>
                     {card}
                   </Link>
                 ) : (

@@ -8,6 +8,7 @@ import posthog from "posthog-js";
 import { stagger, fadeRise, fade, popIn, spring } from "@/app/lib/motion";
 import { StressTestHero } from "@/app/components/marketing/StressTestHero";
 import { FailureMarquee } from "@/app/components/marketing/FailureMarquee";
+import { AuthButton } from "@/app/auth/auth";
 
 const STEPS = [
   { icon: Hammer, title: "Build", body: "Drag components onto the canvas and wire a real architecture.", n: "01" },
@@ -43,7 +44,10 @@ export default function Landing() {
           </span>
           systemInPain<span className="text-brand">.com</span>
         </div>
-        <Link href="/levels" onClick={() => posthog.capture("play_cta_clicked", { location: "nav" })}><Button variant="secondary" size="sm">Open canvas</Button></Link>
+        <div className="flex items-center gap-3">
+          <AuthButton />
+          <Link href="/levels" onClick={() => posthog.capture("play_cta_clicked", { location: "nav" })}><Button variant="secondary" size="sm">Open canvas</Button></Link>
+        </div>
       </header>
 
       {/* HERO — asymmetric, oversized wordmark left / live sim right */}

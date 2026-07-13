@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.25.0",
     "@reduxjs/toolkit": "^2.12.0",
     "@vercel/analytics": "^2.0.1",
     "@xyflow/react": "^12.11.0",

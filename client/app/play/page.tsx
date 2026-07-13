@@ -11,12 +11,14 @@ import {
 } from "@xyflow/react";
 import { FlowEdge } from "@/app/components/canvas/FlowEdge";
 import { Play, RotateCcw, Trash2, ArrowLeft, Lock, Zap, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { useUser } from "@auth0/nextjs-auth0/client";
 import { Panel } from "@/app/components/ui/Panel";
 import { Badge } from "@/app/components/ui/Badge";
 import { InfoTip } from "@/app/components/ui/InfoTip";
 import { GLOSSARY } from "@/app/lib/glossary";
 import { ComponentNode } from "@/app/components/canvas/ComponentNode";
 import { ResultModal } from "@/app/components/play/ResultModal";
+import { LoginGateModal } from "@/app/components/play/LoginGateModal";
 import { CATALOG, GROUP_ORDER, LEVELS, UNLOCK_LEVEL } from "./level-data";
 import { simulate } from "@sdq/sim-engine";
 import { stagger, fadeRise, popIn, spring } from "@/app/lib/motion";
@@ -44,6 +46,7 @@ function PlayInner() {
     return idx !== -1 ? idx : 0;
   });
   const [showResult, setShowResult] = React.useState(false);
+  const [showLoginGate, setShowLoginGate] = React.useState(false);
   const nodes = useAppSelector((s) => s.architecture.nodes);
   const edges = useAppSelector((s) => s.architecture.edges);
   const selected = useAppSelector((s) => s.architecture.selected);
@@ -52,12 +55,14 @@ function PlayInner() {
   const progressHydrated = useAppSelector((s) => s.progress.hydrated);
   const byLevelId = useAppSelector((s) => s.progress.byLevelId);
   const { screenToFlowPosition } = useReactFlow();
+  const { user } = useUser();
+  const loggedIn = !!user;
 
   // a deep link (or stale URL) can point at a level not yet unlocked — once progress
   // has loaded from localStorage, render the highest reachable level instead. Derived
   // at render time (not via an effect) so there's no extra state to keep in sync.
-  const levelIdx = progressHydrated && !isLevelUnlocked(rawLevelIdx, byLevelId)
-    ? highestUnlockedIndex(byLevelId)
+  const levelIdx = progressHydrated && !isLevelUnlocked(rawLevelIdx, byLevelId, loggedIn)
+    ? highestUnlockedIndex(byLevelId, loggedIn)
     : rawLevelIdx;
   const level = LEVELS[levelIdx];
 
@@ -170,7 +175,7 @@ function PlayInner() {
   }, [dispatch, seedCanvas, level, levelIdx]);
   const goLevel = React.useCallback((i: number) => {
     if (i < 0 || i >= LEVELS.length) return;
-    if (!isLevelUnlocked(i, byLevelId)) return;
+    if (!isLevelUnlocked(i, byLevelId, loggedIn)) return;
     posthog.capture("level_changed", {
       from_level_index: levelIdx,
       to_level_index: i,
@@ -183,7 +188,7 @@ function PlayInner() {
     seedCanvas(LEVELS[i]);
     dispatch(simCleared());
     router.replace(`/play?level=${LEVELS[i].id}`, { scroll: false });
-  }, [dispatch, seedCanvas, levelIdx, byLevelId, router]);
+  }, [dispatch, seedCanvas, levelIdx, byLevelId, loggedIn, router]);
 
   // steady (tier-1) gates this level sets — render only what it tests
   const w = level.winConditions.steady;
@@ -210,7 +215,7 @@ function PlayInner() {
           <div className="flex items-center gap-1">
             <button onClick={() => goLevel(levelIdx - 1)} disabled={levelIdx === 0} aria-label="Previous level" className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"><ChevronLeft size={16} /></button>
             <span className="font-display font-bold text-ink">Level {levelIdx + 1} · {level.title}</span>
-            <button onClick={() => goLevel(levelIdx + 1)} disabled={levelIdx === LEVELS.length - 1 || !isLevelUnlocked(levelIdx + 1, byLevelId)} aria-label="Next level" className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"><ChevronRight size={16} /></button>
+            <button onClick={() => goLevel(levelIdx + 1)} disabled={levelIdx === LEVELS.length - 1 || !isLevelUnlocked(levelIdx + 1, byLevelId, loggedIn)} aria-label="Next level" className="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"><ChevronRight size={16} /></button>
           </div>
           <Badge tone="neutral" className="!text-[10px]">{level.concepts[0]?.toUpperCase()}</Badge>
         </div>
@@ -528,10 +533,20 @@ function PlayInner() {
             level={level}
             levelNumber={levelIdx + 1}
             isLast={levelIdx === LEVELS.length - 1}
-            onNext={() => goLevel(levelIdx + 1)}
+            onNext={() => {
+              if (!isLevelUnlocked(levelIdx + 1, byLevelId, loggedIn)) {
+                setShowResult(false);
+                setShowLoginGate(true);
+                return;
+              }
+              goLevel(levelIdx + 1);
+            }}
             onReplay={() => setShowResult(false)}
             onClose={() => setShowResult(false)}
           />
+        )}
+        {showLoginGate && (
+          <LoginGateModal returnTo={`/play?level=${LEVELS[levelIdx + 1]?.id ?? LEVELS[levelIdx].id}`} />
         )}
       </AnimatePresence>
     </div>
