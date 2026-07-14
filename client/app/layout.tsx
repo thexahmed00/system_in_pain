@@ -27,7 +27,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "System Design Quest",
+  title: "systemInPain",
   description: "Learn system design by building, breaking, and scaling real systems.",
 };
 
