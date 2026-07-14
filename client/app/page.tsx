@@ -73,7 +73,9 @@ export default function Landing() {
 
           <motion.div variants={fadeRise} className="flex flex-wrap items-center gap-3 pt-1">
             <Link href="/levels" onClick={() => posthog.capture("play_cta_clicked", { location: "hero_primary" })}><Button variant="primary" size="lg">Start playing <ArrowRight size={18} /></Button></Link>
-            <Button variant="ghost" size="lg">See how it works</Button>
+            <a href="#how-it-works" onClick={() => posthog.capture("how_it_works_clicked", { location: "hero" })}>
+              <Button variant="ghost" size="lg">See how it works</Button>
+            </a>
           </motion.div>
 
           <motion.p variants={fade} className="label-spec max-w-sm !normal-case">
@@ -93,8 +95,9 @@ export default function Landing() {
 
       {/* HOW IT WORKS — numbered editorial cards */}
       <motion.section
+        id="how-it-works"
         variants={stagger(0.07)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }}
-        className="relative z-10 mx-auto max-w-8xl px-6 py-20"
+        className="relative z-10 mx-auto max-w-8xl scroll-mt-20 px-6 py-20"
       >
         <motion.div variants={fadeRise} className="mb-10 flex items-end justify-between gap-6">
           <h2 className="max-w-md font-display text-4xl font-extrabold leading-tight text-ink">
