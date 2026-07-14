@@ -140,6 +140,27 @@ h1, h2, h3 { font-family: var(--font-display), sans-serif; letter-spacing: -0.02
   color: var(--muted);
 }
 
+/* legal copy (privacy/terms) — plain long-form text, not the game UI */
+@utility legal-content {
+  & h2 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  & p { margin-top: 0.5rem; }
+  & ul {
+    margin-top: 0.5rem;
+    list-style-type: disc;
+    padding-left: 1.25rem;
+  }
+  & li {
+    margin-top: 0.5rem;
+    padding-left: 0.25rem;
+  }
+}
+
 @keyframes marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }

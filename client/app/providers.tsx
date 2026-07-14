@@ -6,6 +6,8 @@ import type { User } from "@auth0/nextjs-auth0/types";
 import { store } from "@/app/store";
 import { ProgressSync } from "@/app/store/ProgressSync";
 import { PostHogIdentify } from "@/app/auth/PostHogIdentify";
+import { CookieConsent } from "@/app/components/marketing/CookieConsent";
+import { MobileWarningDialog } from "@/app/components/marketing/MobileWarningDialog";
 
 export function Providers({
   children,
@@ -21,6 +23,8 @@ export function Providers({
         <ProgressSync />
         {children}
       </Provider>
+      <CookieConsent />
+      <MobileWarningDialog />
     </Auth0Provider>
   );
 }

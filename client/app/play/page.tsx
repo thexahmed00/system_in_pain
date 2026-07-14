@@ -19,6 +19,8 @@ import { GLOSSARY } from "@/app/lib/glossary";
 import { ComponentNode } from "@/app/components/canvas/ComponentNode";
 import { ResultModal } from "@/app/components/play/ResultModal";
 import { LoginGateModal } from "@/app/components/play/LoginGateModal";
+import { MobileGuard } from "@/app/components/play/MobileGuard";
+import { useIsMobile } from "@/app/lib/use-is-mobile";
 import { CATALOG, GROUP_ORDER, LEVELS, UNLOCK_LEVEL } from "./level-data";
 import { simulate } from "@sdq/sim-engine";
 import { stagger, fadeRise, popIn, spring } from "@/app/lib/motion";
@@ -554,6 +556,9 @@ function PlayInner() {
 }
 
 export default function PlayPage() {
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileGuard />;
+
   return (
     <React.Suspense fallback={null}>
       <ReactFlowProvider>

@@ -18,10 +18,10 @@ const STEPS = [
 ];
 
 const STAGES = [
-  { n: "01", name: "Foundations", ex: "URL Shortener · Blog · Todo" },
-  { n: "02", name: "Scaling", ex: "Chat · Food Delivery · E-commerce" },
-  { n: "03", name: "Distributed", ex: "WhatsApp · Instagram · Netflix" },
-  { n: "04", name: "Enterprise", ex: "YouTube · Uber · Amazon" },
+  { n: "01", name: "Foundations", ex: "TinyURL · Pastebin · Write Firehose" },
+  { n: "02", name: "Surviving Traffic", ex: "Flash Sale · Lean Startup · Event Pipeline" },
+  { n: "03", name: "Scaling Reads & Writes", ex: "Global Reads · Viral Scale · Read Replica" },
+  { n: "04", name: "Resilience & Security", ex: "Always On · Bot Flood · Overwhelmed" },
 ];
 
 export default function Landing() {
@@ -58,7 +58,7 @@ export default function Landing() {
         <div className="space-y-7">
           <motion.div variants={popIn} className="flex items-center gap-3">
             <Badge tone="brand" dot>Build · Break · Scale</Badge>
-            <span className="label-spec">v1 · 5 levels live</span>
+           
           </motion.div>
 
           {/* grid-breaking display lockup */}
@@ -156,6 +156,17 @@ export default function Landing() {
         </motion.div>
         <p className="label-spec mt-10 text-center">systemInPain.com — the Duolingo of system design</p>
       </section>
+
+      {/* FOOTER */}
+      <footer className="relative z-10 border-t border-line px-6 py-8">
+        <div className="mx-auto flex max-w-8xl flex-col items-center justify-between gap-4 sm:flex-row">
+          <p className="text-sm text-muted">© {new Date().getFullYear()} systemInPain</p>
+          <div className="flex items-center gap-6 text-sm font-medium text-ink-soft">
+            <Link href="/privacy" className="hover:text-ink">Privacy</Link>
+            <Link href="/terms" className="hover:text-ink">Terms</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
