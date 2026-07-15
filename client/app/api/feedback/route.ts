@@ -6,6 +6,8 @@ interface FeedbackRequest {
   message: string;
   email?: string;
   name?: string;
+  /** Where this came from (e.g. "level-3-prompt" vs the standalone /feedback page) — tag only, not user-facing. */
+  source?: string;
 }
 
 const MAX_MESSAGE_LENGTH = 4000;
@@ -30,11 +32,14 @@ export async function POST(req: Request) {
   const name = body.name?.trim() || session?.user?.name || null;
   const email = body.email?.trim() || session?.user?.email || null;
 
+  const source = body.source?.trim() || null;
+
   const { error: dbError } = await supabaseAdmin.from("feedback").insert({
     message,
     name,
     email,
     user_id: session?.user?.sub ?? null,
+    source,
   });
 
   if (dbError) {
@@ -47,7 +52,7 @@ export async function POST(req: Request) {
       from: FEEDBACK_FROM_EMAIL,
       to: FEEDBACK_TO_EMAIL,
       replyTo: email ?? undefined,
-      subject: `systemInPain feedback${name ? ` from ${name}` : ""}`,
+      subject: `systemInPain feedback${name ? ` from ${name}` : ""}${source ? ` (${source})` : ""}`,
       text: `${message}\n\n---\nFrom: ${name ?? "Anonymous"} ${email ? `<${email}>` : "(no email)"}`,
     });
   } catch (err) {

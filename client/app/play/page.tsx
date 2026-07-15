@@ -19,8 +19,10 @@ import { GLOSSARY } from "@/app/lib/glossary";
 import { ComponentNode } from "@/app/components/canvas/ComponentNode";
 import { ResultModal } from "@/app/components/play/ResultModal";
 import { LoginGateModal } from "@/app/components/play/LoginGateModal";
+import { FeedbackPromptModal } from "@/app/components/play/FeedbackPromptModal";
 import { MobileGuard } from "@/app/components/play/MobileGuard";
 import { useIsMobile } from "@/app/lib/use-is-mobile";
+import { hasSeenFeedbackPrompt, markFeedbackPromptSeen } from "@/app/lib/feedback-prompt-storage";
 import { CATALOG, GROUP_ORDER, LEVELS, UNLOCK_LEVEL } from "./level-data";
 import { simulate } from "@sdq/sim-engine";
 import { stagger, fadeRise, popIn, spring } from "@/app/lib/motion";
@@ -49,6 +51,7 @@ function PlayInner() {
   });
   const [showResult, setShowResult] = React.useState(false);
   const [showLoginGate, setShowLoginGate] = React.useState(false);
+  const [showFeedbackPrompt, setShowFeedbackPrompt] = React.useState(false);
   const nodes = useAppSelector((s) => s.architecture.nodes);
   const edges = useAppSelector((s) => s.architecture.edges);
   const selected = useAppSelector((s) => s.architecture.selected);
@@ -168,6 +171,12 @@ function PlayInner() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ levelId: level.id, score: res.final, starsEarned, starsTotal: res.stars.length }),
         }).catch(() => {});
+      }
+      // One-time nudge after Level 3 — enough for a first impression to have
+      // formed, early enough to still catch someone before they'd drop off.
+      if (level.id === "write-firehose-3" && !hasSeenFeedbackPrompt()) {
+        markFeedbackPromptSeen();
+        setShowFeedbackPrompt(true);
       }
     }
     setTimeout(() => dispatch(runFinished(res)), 520);
@@ -560,6 +569,9 @@ function PlayInner() {
         )}
         {showLoginGate && (
           <LoginGateModal returnTo={`/play?level=${LEVELS[levelIdx + 1]?.id ?? LEVELS[levelIdx].id}`} />
+        )}
+        {showFeedbackPrompt && (
+          <FeedbackPromptModal onDismiss={() => setShowFeedbackPrompt(false)} />
         )}
       </AnimatePresence>
     </div>
