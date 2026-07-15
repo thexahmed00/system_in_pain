@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Spline_Sans, JetBrains_Mono } from "next/font/goog
 import "./globals.css";
 import { Providers } from "./providers";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { auth0 } from "@/app/lib/auth0";
 
 // Display — characterful, playful-technical
@@ -44,6 +45,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-paper text-ink font-sans">
         <Providers user={session?.user}>{children}</Providers>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
