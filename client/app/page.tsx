@@ -165,6 +165,7 @@ export default function Landing() {
         <div className="mx-auto flex max-w-8xl flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="text-sm text-muted">© {new Date().getFullYear()} systemInPain</p>
           <div className="flex items-center gap-6 text-sm font-medium text-ink-soft">
+            <Link href="/feedback" className="hover:text-ink">Feedback</Link>
             <Link href="/privacy" className="hover:text-ink">Privacy</Link>
             <Link href="/terms" className="hover:text-ink">Terms</Link>
           </div>
