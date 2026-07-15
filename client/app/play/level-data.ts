@@ -128,7 +128,7 @@ export const LEVELS: Level[] = [
     },
     medals: { silver: { p99LatencyMs: 150 }, gold: { p99LatencyMs: 130 }, platinum: { p99LatencyMs: 115 } },
     challenges: [
-      { id: "efficient", label: "Efficient", hint: "Serve it for $6/hr or less — one cache, one DB", maxCostPerHour: 6 },
+      { id: "efficient", label: "Efficient", hint: "Serve it for $7/hr or less — one cache, one DB", maxCostPerHour: 7 },
       { id: "snappy", label: "Snappy", hint: "Keep p99 latency at or under 120ms", maxP99Ms: 120 },
     ],
     concepts: ["Caching", "Read-Heavy Workloads"],
