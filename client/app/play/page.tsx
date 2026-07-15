@@ -152,15 +152,26 @@ function PlayInner() {
         stars_earned: res.stars.filter((s) => s.earned).length,
         stars_total: res.stars.length,
       });
+      const starsEarned = res.stars.filter((s) => s.earned).length;
       dispatch(levelPassed({
         levelId: level.id,
         score: res.final,
-        starsEarned: res.stars.filter((s) => s.earned).length,
+        starsEarned,
         starsTotal: res.stars.length,
       }));
+      // Persist to the account, not just this browser — the login gate promises
+      // progress follows the user (LoginGateModal); localStorage alone can't keep
+      // that promise across devices or a cleared browser.
+      if (loggedIn) {
+        fetch("/api/progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ levelId: level.id, score: res.final, starsEarned, starsTotal: res.stars.length }),
+        }).catch(() => {});
+      }
     }
     setTimeout(() => dispatch(runFinished(res)), 520);
-  }, [dispatch, nodes, edges, level, levelIdx]);
+  }, [dispatch, nodes, edges, level, levelIdx, loggedIn]);
 
   // levels with a starterGraph open pre-built (L5 starts over-engineered); reset restores it
   const seedCanvas = React.useCallback((lvl: typeof level) => {
