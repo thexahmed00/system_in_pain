@@ -10,7 +10,7 @@ import {
   type NodeChange, type EdgeChange, type Connection, type NodeTypes, type EdgeTypes,
 } from "@xyflow/react";
 import { FlowEdge } from "@/app/components/canvas/FlowEdge";
-import { Play, RotateCcw, Trash2, ArrowLeft, Lock, Zap, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Play, RotateCcw, Trash2, ArrowLeft, Lock, Zap, ChevronLeft, ChevronRight, Star, MessageCircle } from "lucide-react";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import { Panel } from "@/app/components/ui/Panel";
 import { Badge } from "@/app/components/ui/Badge";
@@ -75,6 +75,16 @@ function PlayInner() {
   React.useEffect(() => {
     if (result?.ok) setShowResult(true);
   }, [result]);
+
+  // second chance at the same one-time nudge: if it didn't fire (or was missed)
+  // right after passing Level 3, catch it on arrival at the level right after —
+  // its fresh, unbuilt initial state.
+  React.useEffect(() => {
+    if (LEVELS[levelIdx - 1]?.id === "write-firehose-3" && !hasSeenFeedbackPrompt()) {
+      markFeedbackPromptSeen();
+      setShowFeedbackPrompt(true);
+    }
+  }, [levelIdx]);
 
   // any structural edit invalidates the last run
   const invalidate = React.useCallback(() => {
@@ -242,6 +252,14 @@ function PlayInner() {
           <Badge tone="neutral" className="!text-[10px]">{level.concepts[0]?.toUpperCase()}</Badge>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => { markFeedbackPromptSeen(); setShowFeedbackPrompt(true); }}
+            aria-label="Send feedback"
+            title="Send feedback"
+            className="grid size-9 place-items-center rounded-[var(--radius-md)] border border-line-strong bg-surface text-ink-soft shadow-pop transition-all hover:bg-paper-sunken active:translate-y-[2px] active:shadow-none"
+          >
+            <MessageCircle size={16} />
+          </button>
           <button onClick={reset} className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] border border-line-strong bg-surface px-3 text-sm font-semibold text-ink-soft shadow-pop transition-all hover:bg-paper-sunken active:translate-y-[2px] active:shadow-none">
             <RotateCcw size={14} /> Reset
           </button>
