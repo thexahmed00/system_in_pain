@@ -21,22 +21,27 @@ const DOTS = 3;
 const DUR = 1.6;
 
 // ---- floating geometry: anchor the edge to the nearest point on each node's border ----
+// Inputs are rounded to whole pixels before any math runs. `measured`/`positionAbsolute`
+// can report sub-pixel-different values across renders that trigger for reasons unrelated
+// to an actual move (viewport transform rounding, ResizeObserver noise) — without this,
+// identical-looking renders produce a fractionally different path each time, which shows
+// up as the delete button visibly vibrating under a stationary cursor.
 function intersection(a: InternalNode, b: InternalNode) {
-  const w = (a.measured.width ?? 0) / 2, h = (a.measured.height ?? 0) / 2;
-  const ax = a.internals.positionAbsolute.x + w, ay = a.internals.positionAbsolute.y + h;
-  const bx = b.internals.positionAbsolute.x + (b.measured.width ?? 0) / 2;
-  const by = b.internals.positionAbsolute.y + (b.measured.height ?? 0) / 2;
+  const w = Math.round(a.measured.width ?? 0) / 2, h = Math.round(a.measured.height ?? 0) / 2;
+  const ax = Math.round(a.internals.positionAbsolute.x) + w, ay = Math.round(a.internals.positionAbsolute.y) + h;
+  const bx = Math.round(b.internals.positionAbsolute.x) + Math.round(b.measured.width ?? 0) / 2;
+  const by = Math.round(b.internals.positionAbsolute.y) + Math.round(b.measured.height ?? 0) / 2;
   const xx = (bx - ax) / (2 * w) - (by - ay) / (2 * h);
   const yy = (bx - ax) / (2 * w) + (by - ay) / (2 * h);
   const k = 1 / (Math.abs(xx) + Math.abs(yy) || 1);
-  return { x: w * (k * xx + k * yy) + ax, y: h * (-k * xx + k * yy) + ay };
+  return { x: Math.round(w * (k * xx + k * yy) + ax), y: Math.round(h * (-k * xx + k * yy) + ay) };
 }
 function sideOf(node: InternalNode, x: number, y: number): Position {
-  const nx = node.internals.positionAbsolute.x, ny = node.internals.positionAbsolute.y;
-  const nw = node.measured.width ?? 0, nh = node.measured.height ?? 0;
-  if (Math.round(x) <= Math.round(nx) + 1) return Position.Left;
-  if (Math.round(x) >= Math.round(nx + nw) - 1) return Position.Right;
-  if (Math.round(y) <= Math.round(ny) + 1) return Position.Top;
+  const nx = Math.round(node.internals.positionAbsolute.x), ny = Math.round(node.internals.positionAbsolute.y);
+  const nw = Math.round(node.measured.width ?? 0);
+  if (Math.round(x) <= nx + 1) return Position.Left;
+  if (Math.round(x) >= nx + nw - 1) return Position.Right;
+  if (Math.round(y) <= ny + 1) return Position.Top;
   return Position.Bottom;
 }
 
@@ -98,7 +103,7 @@ export function FlowEdge({ id, source, target, selected, data, ...fallback }: Ed
             type="button"
             onClick={remove}
             title="Delete connection"
-            className="nodrag nopan grid size-6 place-items-center rounded-full border border-line bg-surface text-bottleneck shadow-pop transition-transform hover:scale-110"
+            className="nodrag nopan grid size-6 place-items-center rounded-full border border-line bg-surface text-bottleneck shadow-pop transition-colors hover:bg-bottleneck-soft"
             style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: "all" }}
           >
             <X size={13} strokeWidth={2.5} />
