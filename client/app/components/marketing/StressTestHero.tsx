@@ -62,10 +62,15 @@ const NODES = [
 const Y = 84;
 const R = 27;
 
-function Packet({ from, to, delay, duration, color, drop }: {
-  from: number; to: number; delay: number; duration: number; color: string; drop: number;
+function Packet({ from, to, delay, duration, color, drop, index }: {
+  from: number; to: number; delay: number; duration: number; color: string; drop: number; index: number;
 }) {
-  const dropped = Math.random() < drop;
+  // Deterministic, not random: this renders on both server and client (the
+  // landing page is dynamically SSR'd), and Math.random() here would pick a
+  // different packet to "drop" each time, producing a hydration mismatch on
+  // first paint. Spacing drops evenly by index reproduces the same visual
+  // drop rate without ever disagreeing between renders.
+  const dropped = drop > 0 && index % Math.max(1, Math.round(1 / drop)) === 0;
   return (
     <motion.circle
       r={5} fill={color}
@@ -140,7 +145,7 @@ export function StressTestHero() {
         <g key={s.id}>
           {[[NODES[0].x + R, NODES[1].x - R], [NODES[1].x + R, NODES[2].x - R]].map(([f, t], seg) =>
             Array.from({ length: s.packets.count }).map((_, k) => (
-              <Packet key={`${seg}-${k}`} from={f} to={t}
+              <Packet key={`${seg}-${k}`} from={f} to={t} index={k}
                 delay={(k / s.packets.count) * s.packets.duration + seg * 0.2}
                 duration={s.packets.duration} color={s.packets.color} drop={s.packets.drop} />
             )),
