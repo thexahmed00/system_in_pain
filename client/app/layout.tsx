@@ -26,9 +26,27 @@ const mono = JetBrains_Mono({
   weight: ["400", "500", "700"],
 });
 
+const SITE_URL = "https://systeminpain.com";
+const TITLE = "systemInPain";
+const DESCRIPTION = "Learn system design by building, breaking, and scaling real systems.";
+
 export const metadata: Metadata = {
-  title: "systemInPain",
-  description: "Learn system design by building, breaking, and scaling real systems.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: SITE_URL,
+    siteName: TITLE,
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default async function RootLayout({
