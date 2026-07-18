@@ -22,7 +22,7 @@ import { LoginGateModal } from "@/app/components/play/LoginGateModal";
 import { FeedbackPromptModal } from "@/app/components/play/FeedbackPromptModal";
 import { MobileGuard } from "@/app/components/play/MobileGuard";
 import { useIsMobile } from "@/app/lib/use-is-mobile";
-import { hasSeenFeedbackPrompt, markFeedbackPromptSeen } from "@/app/lib/feedback-prompt-storage";
+import { shouldShowFeedbackPrompt, markFeedbackPromptShown } from "@/app/lib/feedback-prompt-storage";
 import { CATALOG, GROUP_ORDER, LEVELS, UNLOCK_LEVEL } from "./level-data";
 import { simulate } from "@sdq/sim-engine";
 import { stagger, fadeRise, popIn, spring } from "@/app/lib/motion";
@@ -75,16 +75,6 @@ function PlayInner() {
   React.useEffect(() => {
     if (result?.ok) setShowResult(true);
   }, [result]);
-
-  // second chance at the same one-time nudge: if it didn't fire (or was missed)
-  // right after passing Level 3, catch it on arrival at the level right after —
-  // its fresh, unbuilt initial state.
-  React.useEffect(() => {
-    if (LEVELS[levelIdx - 1]?.id === "write-firehose-3" && !hasSeenFeedbackPrompt()) {
-      markFeedbackPromptSeen();
-      setShowFeedbackPrompt(true);
-    }
-  }, [levelIdx]);
 
   // any structural edit invalidates the last run
   const invalidate = React.useCallback(() => {
@@ -182,10 +172,11 @@ function PlayInner() {
           body: JSON.stringify({ levelId: level.id, score: res.final, starsEarned, starsTotal: res.stars.length }),
         }).catch(() => {});
       }
-      // One-time nudge after Level 3 — enough for a first impression to have
-      // formed, early enough to still catch someone before they'd drop off.
-      if (level.id === "write-firehose-3" && !hasSeenFeedbackPrompt()) {
-        markFeedbackPromptSeen();
+      // First nudge after Level 3 (early enough to catch someone before they'd
+      // drop off), then recurring every few levels for anyone still playing —
+      // an engaged player keeps getting asked, someone who bounces doesn't.
+      if (shouldShowFeedbackPrompt(levelIdx)) {
+        markFeedbackPromptShown(levelIdx);
         setShowFeedbackPrompt(true);
       }
     }
@@ -253,7 +244,7 @@ function PlayInner() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { markFeedbackPromptSeen(); setShowFeedbackPrompt(true); }}
+            onClick={() => { markFeedbackPromptShown(levelIdx); setShowFeedbackPrompt(true); }}
             aria-label="Send feedback"
             title="Send feedback"
             className="grid size-9 place-items-center rounded-[var(--radius-md)] border border-line-strong bg-surface text-ink-soft shadow-pop transition-all hover:bg-paper-sunken active:translate-y-[2px] active:shadow-none"
@@ -589,7 +580,7 @@ function PlayInner() {
           <LoginGateModal returnTo={`/play?level=${LEVELS[levelIdx + 1]?.id ?? LEVELS[levelIdx].id}`} />
         )}
         {showFeedbackPrompt && (
-          <FeedbackPromptModal onDismiss={() => setShowFeedbackPrompt(false)} />
+          <FeedbackPromptModal onDismiss={() => setShowFeedbackPrompt(false)} levelNumber={levelIdx + 1} />
         )}
       </AnimatePresence>
     </div>
